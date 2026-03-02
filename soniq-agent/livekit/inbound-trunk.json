@@ -1,0 +1,7 @@
+{
+  "trunk": {
+    "name": "SignalWire Inbound",
+    "numbers": ["+19458001233"],
+    "krispEnabled": true
+  }
+}

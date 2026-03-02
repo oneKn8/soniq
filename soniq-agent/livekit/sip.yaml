@@ -1,0 +1,19 @@
+# LiveKit SIP Server Configuration
+# Bridges SIP calls from SignalWire to LiveKit rooms
+
+log_level: info
+
+# LiveKit server connection
+api_key: APIc4ecf671a4b0eab56ceb2cd4
+api_secret: 7b284f366c10a9f0319a29352402a300a01362e960a84c492baaaeedfc970386
+ws_url: ws://localhost:7880
+
+# Redis (must match LiveKit server)
+redis:
+  address: localhost:6379
+
+# SIP signaling port
+sip_port: 5060
+
+# RTP media port range
+rtp_port: 10000-20000

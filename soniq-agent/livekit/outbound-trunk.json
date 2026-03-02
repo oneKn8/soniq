@@ -1,0 +1,7 @@
+{
+  "name": "SignalWire Outbound",
+  "address": "YOURSPACE.signalwire.com",
+  "numbers": ["+1XXXXXXXXXX"],
+  "authUsername": "YOUR_SIGNALWIRE_PROJECT_ID",
+  "authPassword": "YOUR_SIGNALWIRE_API_TOKEN"
+}

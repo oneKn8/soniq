@@ -1,0 +1,19 @@
+{
+  "dispatch_rule": {
+    "name": "Soniq Voice Agent",
+    "rule": {
+      "dispatchRuleIndividual": {
+        "roomPrefix": "call-"
+      }
+    },
+    "trunkIds": [],
+    "hidePhoneNumber": false,
+    "roomConfig": {
+      "agents": [
+        {
+          "agentName": "soniq-voice-agent"
+        }
+      ]
+    }
+  }
+}

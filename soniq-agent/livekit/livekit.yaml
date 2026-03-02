@@ -1,0 +1,30 @@
+# LiveKit Server Configuration
+# Self-hosted on Hetzner for Soniq voice pipeline
+
+port: 7880
+
+keys:
+  APIc4ecf671a4b0eab56ceb2cd4: 7b284f366c10a9f0319a29352402a300a01362e960a84c492baaaeedfc970386
+
+rtc:
+  # WebRTC TCP fallback port
+  tcp_port: 7881
+  # UDP port range for ICE candidates
+  port_range_start: 50000
+  port_range_end: 60000
+  # Use ICE lite for server-side (recommended for self-hosted)
+  use_ice_lite: true
+
+redis:
+  address: localhost:6379
+
+logging:
+  level: info
+  # Set to debug for troubleshooting SIP/WebRTC issues
+  # level: debug
+
+room:
+  # Auto-create rooms when agents or SIP calls join
+  auto_create: true
+  # Room idle timeout (seconds) - clean up empty rooms
+  empty_timeout: 300
