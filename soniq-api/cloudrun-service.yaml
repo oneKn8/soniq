@@ -1,0 +1,52 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: soniq-api
+  labels:
+    cloud.googleapis.com/location: us-central1
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        # Keep 1 instance warm to avoid cold starts for voice calls
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "10"
+        # Extended timeout for voice calls (60 minutes)
+        run.googleapis.com/request-timeout: "3600s"
+        # WebSocket session affinity
+        run.googleapis.com/sessionAffinity: "true"
+    spec:
+      containerConcurrency: 100
+      timeoutSeconds: 3600
+      containers:
+        - image: gcr.io/PROJECT_ID/soniq-api:latest
+          ports:
+            - containerPort: 3100
+          resources:
+            limits:
+              memory: "1Gi"
+              cpu: "2"
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3100"
+          # Startup probe for health check
+          startupProbe:
+            httpGet:
+              path: /health/ping
+              port: 3100
+            initialDelaySeconds: 5
+            timeoutSeconds: 3
+            periodSeconds: 5
+            failureThreshold: 10
+          # Liveness probe
+          livenessProbe:
+            httpGet:
+              path: /health/ping
+              port: 3100
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3

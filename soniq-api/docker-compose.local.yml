@@ -1,0 +1,25 @@
+# Local development PostgreSQL for testing Supabase migration
+# Usage: docker compose -f docker-compose.local.yml up -d
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: soniq-postgres-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: soniq
+      POSTGRES_PASSWORD: localdev123456789
+      POSTGRES_DB: soniq
+    ports:
+      - "5434:5432" # Use 5434 to avoid conflict with local PostgreSQL on 5433
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./schema:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U soniq -d soniq"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

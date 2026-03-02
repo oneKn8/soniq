@@ -1,0 +1,47 @@
+# Fly.io configuration for Soniq API
+# Deploy: fly deploy
+# Logs: fly logs
+
+app = "soniq-api"
+primary_region = "sjc"  # San Jose - good for US West
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "3100"
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 3100
+  force_https = true
+  auto_stop_machines = "off"    # Keep running for voice calls
+  auto_start_machines = true
+  min_machines_running = 1       # Always-on for voice calls
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 100
+    soft_limit = 80
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+# Health check
+[[services]]
+  protocol = "tcp"
+  internal_port = 3100
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [[services.http_checks]]
+    interval = "10s"
+    timeout = "2s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/health"
