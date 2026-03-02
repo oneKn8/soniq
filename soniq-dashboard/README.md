@@ -1,6 +1,6 @@
 # Soniq Dashboard
 
-Next.js dashboard UI for CallAgent. For the full repo overview, see
+Next.js dashboard UI for Soniq. For the full repo overview, see
 `../README.md`.
 
 ## Development

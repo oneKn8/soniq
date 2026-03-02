@@ -1,6 +1,6 @@
 # Soniq API
 
-Production backend for the CallAgent platform.
+Production backend for the Soniq platform.
 
 ## Development
 
