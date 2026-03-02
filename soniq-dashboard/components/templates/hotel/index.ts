@@ -1,0 +1,1 @@
+export { HotelWorkstation } from "./HotelWorkstation";

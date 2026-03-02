@@ -1,0 +1,1086 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================================
+   SONIQ CORE - UNIVERSAL ENTERPRISE THEME
+   Inspired by Linear, Vercel, Stripe - Deep Zinc/Charcoal
+   Works on any monitor from $100 Dell to $3000 MacBook
+   ============================================================================ */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --animate-grid: grid 15s linear infinite;
+  @keyframes grid {
+    0% {
+      transform: translateY(-50%);
+    }
+    100% {
+      transform: translateY(0);
+    }
+  }
+}
+
+/* ============================================================================
+   UNIVERSAL ENTERPRISE COLOR PALETTE
+   Light Mode - Clean, professional appearance
+   ============================================================================ */
+
+:root {
+  --radius: 0.5rem;
+
+  /* Background Hierarchy (Light) */
+  --background: #ffffff; /* white - Main background */
+  --background-elevated: #f4f4f5; /* zinc-100 - Cards, panels */
+  --background-subtle: #e4e4e7; /* zinc-200 - Hover states */
+
+  /* Foreground Hierarchy */
+  --foreground: #18181b; /* zinc-900 - Primary text */
+  --foreground-muted: #71717a; /* zinc-500 - Secondary text */
+  --foreground-subtle: #a1a1aa; /* zinc-400 - Tertiary text */
+
+  /* Component Colors */
+  --card: #ffffff; /* white */
+  --card-foreground: #18181b;
+  --popover: #ffffff;
+  --popover-foreground: #18181b;
+
+  /* Primary Action (Indigo - Enterprise feel) */
+  --primary: #6366f1; /* indigo-500 */
+  --primary-foreground: #ffffff;
+  --primary-hover: #4f46e5; /* indigo-600 */
+  --primary-muted: #818cf8; /* indigo-400 */
+
+  /* Secondary */
+  --secondary: #f4f4f5; /* zinc-100 */
+  --secondary-foreground: #18181b;
+
+  /* Muted */
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+
+  /* Accent */
+  --accent: #f4f4f5;
+  --accent-foreground: #18181b;
+
+  /* Status Colors - High Contrast for any monitor */
+  --success: #22c55e; /* green-500 */
+  --success-muted: #16a34a; /* green-600 */
+  --warning: #f59e0b; /* amber-500 */
+  --warning-muted: #d97706; /* amber-600 */
+  --destructive: #ef4444; /* red-500 */
+  --destructive-muted: #dc2626; /* red-600 */
+  --info: #3b82f6; /* blue-500 */
+
+  /* Borders */
+  --border: #e4e4e7; /* zinc-200 */
+  --border-muted: #d4d4d8; /* zinc-300 */
+  --input: #e4e4e7;
+  --ring: #6366f1;
+
+  /* Charts */
+  --chart-1: #6366f1; /* indigo */
+  --chart-2: #22c55e; /* green */
+  --chart-3: #f59e0b; /* amber */
+  --chart-4: #ec4899; /* pink */
+  --chart-5: #8b5cf6; /* violet */
+
+  /* Industry Accent (default - indigo, matches primary) */
+  --industry-accent: #6366f1;
+  --industry-accent-hover: #4f46e5;
+  --industry-accent-muted: #e0e7ff;
+  --industry-accent-foreground: #ffffff;
+
+  /* Sidebar */
+  --sidebar: #fafafa;
+  --sidebar-foreground: #18181b;
+  --sidebar-primary: #6366f1;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f4f4f5;
+  --sidebar-accent-foreground: #18181b;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #6366f1;
+
+  /* Waveform Colors */
+  --waveform-user: #22c55e; /* green-500 - User speaking */
+  --waveform-ai: #6366f1; /* indigo-500 - AI speaking */
+  --waveform-idle: #d4d4d8; /* zinc-300 - Idle */
+  --waveform-processing: #f59e0b; /* amber-500 - Processing */
+}
+
+/* ============================================================================
+   DARK MODE - Deep Zinc/Charcoal
+   ============================================================================ */
+
+.dark {
+  --radius: 0.5rem;
+
+  /* Background Hierarchy (Deep Zinc) */
+  --background: #09090b; /* zinc-950 - Main background */
+  --background-elevated: #18181b; /* zinc-900 - Cards, panels */
+  --background-subtle: #27272a; /* zinc-800 - Hover states */
+
+  /* Foreground Hierarchy */
+  --foreground: #fafafa; /* zinc-50 - Primary text */
+  --foreground-muted: #a1a1aa; /* zinc-400 - Secondary text */
+  --foreground-subtle: #71717a; /* zinc-500 - Tertiary text */
+
+  /* Component Colors */
+  --card: #18181b; /* zinc-900 */
+  --card-foreground: #fafafa;
+  --popover: #18181b;
+  --popover-foreground: #fafafa;
+
+  /* Primary Action */
+  --primary: #6366f1;
+  --primary-foreground: #ffffff;
+  --primary-hover: #818cf8;
+  --primary-muted: #4f46e5;
+
+  /* Secondary */
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa;
+
+  /* Muted */
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+
+  /* Accent */
+  --accent: #27272a;
+  --accent-foreground: #fafafa;
+
+  /* Status Colors */
+  --success: #22c55e;
+  --success-muted: #16a34a;
+  --warning: #f59e0b;
+  --warning-muted: #d97706;
+  --destructive: #ef4444;
+  --destructive-muted: #dc2626;
+  --info: #3b82f6;
+
+  /* Borders */
+  --border: #27272a;
+  --border-muted: #3f3f46;
+  --input: #27272a;
+  --ring: #6366f1;
+
+  /* Charts */
+  --chart-1: #6366f1;
+  --chart-2: #22c55e;
+  --chart-3: #f59e0b;
+  --chart-4: #ec4899;
+  --chart-5: #8b5cf6;
+
+  /* Industry Accent (default - indigo, matches primary) */
+  --industry-accent: #6366f1;
+  --industry-accent-hover: #818cf8;
+  --industry-accent-muted: #312e81;
+  --industry-accent-foreground: #ffffff;
+
+  /* Sidebar */
+  --sidebar: #0f0f11;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #6366f1;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #27272a;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #27272a;
+  --sidebar-ring: #6366f1;
+
+  /* Waveform Colors */
+  --waveform-user: #22c55e;
+  --waveform-ai: #6366f1;
+  --waveform-idle: #3f3f46;
+  --waveform-processing: #f59e0b;
+}
+
+/* ============================================================================
+   BASE STYLES
+   ============================================================================ */
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family:
+      var(--font-geist-sans),
+      system-ui,
+      -apple-system,
+      sans-serif;
+  }
+
+  /* Monospace for data/numbers - Mission Control aesthetic */
+  .font-mono,
+  [data-mono="true"],
+  .metric-value,
+  .log-entry,
+  .timestamp {
+    font-family: var(--font-geist-mono), ui-monospace, "SF Mono",
+      "Cascadia Mono", monospace;
+    font-feature-settings: "tnum";
+    letter-spacing: -0.02em;
+  }
+}
+
+/* ============================================================================
+   COMPONENT UTILITIES
+   ============================================================================ */
+
+@layer utilities {
+  /* Status indicators */
+  .status-nominal {
+    @apply text-green-500;
+  }
+
+  .status-warning {
+    @apply text-amber-500;
+  }
+
+  .status-critical {
+    @apply text-red-500;
+  }
+
+  .status-offline {
+    @apply text-zinc-500;
+  }
+
+  /* Metric cards */
+  .metric-card {
+    @apply rounded-lg border border-border bg-card p-4;
+  }
+
+  .metric-label {
+    @apply text-[10px] font-medium uppercase tracking-wider text-muted-foreground;
+  }
+
+  .metric-value {
+    @apply text-2xl font-semibold tabular-nums text-foreground;
+  }
+
+  /* Log styling */
+  .log-container {
+    @apply font-mono text-xs leading-relaxed;
+  }
+
+  .log-timestamp {
+    @apply text-muted-foreground;
+  }
+
+  .log-level-info {
+    @apply text-blue-500 dark:text-blue-400;
+  }
+
+  .log-level-warn {
+    @apply text-amber-500 dark:text-amber-400;
+  }
+
+  .log-level-error {
+    @apply text-red-500 dark:text-red-400;
+  }
+
+  .log-level-debug {
+    @apply text-muted-foreground;
+  }
+
+  .log-category {
+    @apply text-indigo-600 dark:text-indigo-400;
+  }
+
+  .log-message {
+    @apply text-foreground/80;
+  }
+
+  /* Sidebar */
+  .sidebar-item {
+    @apply flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground;
+  }
+
+  .sidebar-item-active {
+    @apply bg-accent text-foreground;
+  }
+
+  /* Dense data display */
+  .data-dense {
+    @apply text-xs leading-tight;
+  }
+
+  /* Status pulse */
+  .status-pulse {
+    @apply relative;
+  }
+
+  .status-pulse::before {
+    content: "";
+    @apply absolute inset-0 animate-ping rounded-full opacity-75;
+    background-color: inherit;
+  }
+
+  /* Card hover effect */
+  .card-interactive {
+    @apply transition-all duration-200 hover:bg-muted/50;
+  }
+
+  .card-interactive:hover {
+    border-color: var(--border-muted);
+  }
+
+  /* Soft Depth shadows */
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+
+  .shadow-depth {
+    box-shadow: var(--shadow-medium);
+  }
+
+  .shadow-depth-lg {
+    box-shadow: var(--shadow-large);
+  }
+
+  .shadow-elevated {
+    box-shadow: var(--shadow-elevated);
+  }
+
+  /* Industry accent utilities */
+  .bg-industry {
+    background-color: var(--industry-accent);
+  }
+
+  .bg-industry-muted {
+    background-color: var(--industry-accent-muted);
+  }
+
+  .text-industry {
+    color: var(--industry-accent);
+  }
+
+  .border-industry {
+    border-color: var(--industry-accent);
+  }
+
+  .ring-industry {
+    --tw-ring-color: var(--industry-accent);
+  }
+
+  /* Soft Depth card style */
+  .card-soft {
+    @apply rounded-xl border border-border bg-card;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .card-soft:hover {
+    box-shadow: var(--shadow-medium);
+  }
+
+  /* Elevated panel */
+  .panel-elevated {
+    @apply rounded-2xl border border-border bg-card;
+    box-shadow: var(--shadow-large);
+  }
+
+  /* Crisp borders for Mission Control feel */
+  .border-crisp {
+    @apply border border-border;
+  }
+
+  /* Panel sections */
+  .panel-section {
+    @apply border-b border-border py-4;
+  }
+
+  .panel-section:last-child {
+    @apply border-b-0;
+  }
+
+  /* Scrollbar styling */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-muted) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--border-muted);
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: var(--muted-foreground);
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ============================================================================
+   WAVEFORM ANIMATION
+   ============================================================================ */
+
+@keyframes waveform-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scaleY(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+.waveform-bar {
+  animation: waveform-pulse 1s ease-in-out infinite;
+}
+
+.waveform-bar:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.waveform-bar:nth-child(3) {
+  animation-delay: 0.2s;
+}
+.waveform-bar:nth-child(4) {
+  animation-delay: 0.3s;
+}
+.waveform-bar:nth-child(5) {
+  animation-delay: 0.4s;
+}
+
+/* ============================================================================
+   SOFT DEPTH DESIGN TOKENS
+   Subtle shadows, warm neutrals, gentle depth - Notion/Arc inspired
+   ============================================================================ */
+
+:root {
+  /* Soft Depth Shadows */
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-medium: 0 2px 4px rgba(0, 0, 0, 0.04), 0 4px 8px rgba(0, 0, 0, 0.06);
+  --shadow-large: 0 4px 8px rgba(0, 0, 0, 0.04), 0 8px 16px rgba(0, 0, 0, 0.08);
+  --shadow-elevated: 0 8px 16px rgba(0, 0, 0, 0.08),
+    0 16px 32px rgba(0, 0, 0, 0.1);
+
+  /* Soft Depth specific overrides for warmer feel */
+  --bg-warm: #fafaf9;
+  --bg-warm-elevated: #ffffff;
+  --border-warm: #e7e5e4;
+}
+
+.dark {
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-medium: 0 2px 4px rgba(0, 0, 0, 0.2), 0 4px 8px rgba(0, 0, 0, 0.25);
+  --shadow-large: 0 4px 8px rgba(0, 0, 0, 0.2), 0 8px 16px rgba(0, 0, 0, 0.3);
+  --shadow-elevated: 0 8px 16px rgba(0, 0, 0, 0.3),
+    0 16px 32px rgba(0, 0, 0, 0.4);
+
+  --bg-warm: #1c1917;
+  --bg-warm-elevated: #292524;
+  --border-warm: #44403c;
+}
+
+/* ============================================================================
+   INDUSTRY ACCENT THEMES
+   Applied via data-industry attribute on body or container
+   ============================================================================ */
+
+/* Healthcare - Clinic, Medical, Dental */
+[data-industry="clinic"],
+[data-industry="medical_practice"],
+[data-industry="dental_practice"],
+[data-industry="physical_therapy"],
+[data-industry="optometry"],
+[data-industry="veterinary"] {
+  --industry-accent: #10b981;
+  --industry-accent-hover: #059669;
+  --industry-accent-muted: #d1fae5;
+  --industry-accent-foreground: #ffffff;
+}
+
+/* Hospitality - Hotel, Restaurant */
+[data-industry="hotel"],
+[data-industry="boutique_hotel"],
+[data-industry="resort"] {
+  --industry-accent: #8b5cf6;
+  --industry-accent-hover: #7c3aed;
+  --industry-accent-muted: #ede9fe;
+  --industry-accent-foreground: #ffffff;
+}
+
+[data-industry="restaurant"],
+[data-industry="fine_dining"] {
+  --industry-accent: #f59e0b;
+  --industry-accent-hover: #d97706;
+  --industry-accent-muted: #fef3c7;
+  --industry-accent-foreground: #ffffff;
+}
+
+/* Personal Care - Salon, Spa */
+[data-industry="salon"],
+[data-industry="barbershop"],
+[data-industry="spa"],
+[data-industry="med_spa"] {
+  --industry-accent: #ec4899;
+  --industry-accent-hover: #db2777;
+  --industry-accent-muted: #fce7f3;
+  --industry-accent-foreground: #ffffff;
+}
+
+/* Professional Services */
+[data-industry="law_firm"],
+[data-industry="accounting_firm"],
+[data-industry="consulting"] {
+  --industry-accent: #0ea5e9;
+  --industry-accent-hover: #0284c7;
+  --industry-accent-muted: #e0f2fe;
+  --industry-accent-foreground: #ffffff;
+}
+
+/* Automotive */
+[data-industry="auto_dealership"],
+[data-industry="auto_service"],
+[data-industry="car_rental"] {
+  --industry-accent: #ef4444;
+  --industry-accent-hover: #dc2626;
+  --industry-accent-muted: #fee2e2;
+  --industry-accent-foreground: #ffffff;
+}
+
+/* Property & Home Services */
+[data-industry="real_estate"],
+[data-industry="property_management"],
+[data-industry="home_services"] {
+  --industry-accent: #14b8a6;
+  --industry-accent-hover: #0d9488;
+  --industry-accent-muted: #ccfbf1;
+  --industry-accent-foreground: #ffffff;
+}
+
+/* Fitness */
+[data-industry="fitness_studio"],
+[data-industry="gym"] {
+  --industry-accent: #f97316;
+  --industry-accent-hover: #ea580c;
+  --industry-accent-muted: #ffedd5;
+  --industry-accent-foreground: #ffffff;
+}
+
+/* Default fallback */
+[data-industry="default"],
+:root {
+  --industry-accent: #6366f1;
+  --industry-accent-hover: #4f46e5;
+  --industry-accent-muted: #e0e7ff;
+  --industry-accent-foreground: #ffffff;
+}
+
+/* Dark mode industry accent adjustments */
+.dark [data-industry="clinic"],
+.dark [data-industry="medical_practice"],
+.dark [data-industry="dental_practice"],
+.dark [data-industry="physical_therapy"],
+.dark [data-industry="optometry"],
+.dark [data-industry="veterinary"] {
+  --industry-accent-muted: #064e3b;
+}
+
+.dark [data-industry="hotel"],
+.dark [data-industry="boutique_hotel"],
+.dark [data-industry="resort"] {
+  --industry-accent-muted: #4c1d95;
+}
+
+.dark [data-industry="restaurant"],
+.dark [data-industry="fine_dining"] {
+  --industry-accent-muted: #78350f;
+}
+
+.dark [data-industry="salon"],
+.dark [data-industry="barbershop"],
+.dark [data-industry="spa"],
+.dark [data-industry="med_spa"] {
+  --industry-accent-muted: #831843;
+}
+
+.dark [data-industry="law_firm"],
+.dark [data-industry="accounting_firm"],
+.dark [data-industry="consulting"] {
+  --industry-accent-muted: #075985;
+}
+
+.dark [data-industry="auto_dealership"],
+.dark [data-industry="auto_service"],
+.dark [data-industry="car_rental"] {
+  --industry-accent-muted: #7f1d1d;
+}
+
+.dark [data-industry="real_estate"],
+.dark [data-industry="property_management"],
+.dark [data-industry="home_services"] {
+  --industry-accent-muted: #134e4a;
+}
+
+.dark [data-industry="fitness_studio"],
+.dark [data-industry="gym"] {
+  --industry-accent-muted: #7c2d12;
+}
+
+.dark [data-industry="default"],
+.dark:root {
+  --industry-accent-muted: #312e81;
+}
+
+/* ============================================================================
+   THEME COLOR VARIANTS (Legacy support)
+   Applied via data-theme attribute
+   ============================================================================ */
+
+[data-theme="indigo"] {
+  --primary: #6366f1;
+  --primary-hover: #818cf8;
+  --ring: #6366f1;
+  --waveform-ai: #6366f1;
+}
+
+[data-theme="emerald"] {
+  --primary: #10b981;
+  --primary-hover: #34d399;
+  --ring: #10b981;
+  --waveform-ai: #10b981;
+}
+
+[data-theme="blue"] {
+  --primary: #3b82f6;
+  --primary-hover: #60a5fa;
+  --ring: #3b82f6;
+  --waveform-ai: #3b82f6;
+}
+
+[data-theme="violet"] {
+  --primary: #8b5cf6;
+  --primary-hover: #a78bfa;
+  --ring: #8b5cf6;
+  --waveform-ai: #8b5cf6;
+}
+
+/* ============================================================================
+   FOCUS STATES - Accessibility
+   ============================================================================ */
+
+@layer base {
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+  }
+
+  button:focus-visible,
+  [role="button"]:focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+  }
+}
+
+/* ============================================================================
+   PRINT STYLES
+   ============================================================================ */
+
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* ============================================================================
+   MAGIC UI ANIMATIONS
+   ============================================================================ */
+
+/* Shimmer Button */
+@keyframes shimmer-slide {
+  to {
+    transform: translate(calc(100cqw - 100%), 0);
+  }
+}
+
+@keyframes spin-around {
+  0% {
+    transform: translateZ(0) rotate(0);
+  }
+  15%,
+  35% {
+    transform: translateZ(0) rotate(90deg);
+  }
+  65%,
+  85% {
+    transform: translateZ(0) rotate(270deg);
+  }
+  100% {
+    transform: translateZ(0) rotate(360deg);
+  }
+}
+
+.animate-shimmer-slide {
+  animation: shimmer-slide var(--speed) ease-in-out infinite alternate;
+}
+
+.animate-spin-around {
+  animation: spin-around calc(var(--speed) * 2) infinite linear;
+}
+
+/* Marquee */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-100% - var(--gap)));
+  }
+}
+
+@keyframes marquee-vertical {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(-100% - var(--gap)));
+  }
+}
+
+.animate-marquee {
+  animation: marquee var(--duration) linear infinite;
+}
+
+.animate-marquee-vertical {
+  animation: marquee-vertical var(--duration) linear infinite;
+}
+
+/* Shine Border */
+@keyframes shine-pulse {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+.animate-shine-pulse {
+  animation: shine-pulse var(--shine-pulse-duration) infinite linear;
+}
+
+.before\:bg-shine-size::before {
+  background-size: 300% 300%;
+}
+
+/* Ripple */
+@keyframes ripple {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+}
+
+.animate-ripple {
+  animation: ripple 3400ms ease infinite;
+}
+
+/* Infinite Scroll */
+@keyframes scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-50% - 0.5rem));
+  }
+}
+
+.animate-scroll {
+  animation: scroll var(--animation-duration, 40s)
+    var(--animation-direction, forwards) linear infinite;
+}
+
+/* Shine Border Animation */
+@keyframes shine {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+.motion-safe\:before\:animate-shine::before {
+  animation: shine var(--duration, 14s) ease-in-out infinite;
+}
+
+/* Accordion Animations */
+@keyframes accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+.animate-accordion-down {
+  animation: accordion-down 0.2s ease-out;
+}
+
+.animate-accordion-up {
+  animation: accordion-up 0.2s ease-out;
+}
+
+/* Shimmer Animation for Skeletons */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ============================================================================
+   RESPONSIVE UTILITIES
+   ============================================================================ */
+
+/* Touch-friendly tap targets */
+@media (pointer: coarse) {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Safe area padding for mobile devices */
+.safe-area-inset {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Hide scrollbar on mobile for cleaner look */
+@media (max-width: 768px) {
+  .scrollbar-hide-mobile {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-hide-mobile::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ============================================================================
+   DARK MODE REFINEMENTS
+   ============================================================================ */
+
+/* Improved contrast for text in dark mode */
+.dark .text-refined {
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+/* Subtle glow for primary elements in dark mode */
+.dark .glow-primary {
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
+}
+
+/* Better image handling in dark mode */
+.dark img:not([data-no-invert]) {
+  filter: brightness(0.95);
+}
+
+/* Dark mode card hover refinement */
+.dark .card-hover-dark:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Improved focus visibility in dark mode */
+.dark :focus-visible {
+  outline-color: rgba(99, 102, 241, 0.8);
+}
+
+/* Dark mode divider refinement */
+.dark .divider-refined {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ============================================================================
+   ACCESSIBILITY ENHANCEMENTS
+   ============================================================================ */
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --border: #000000;
+    --ring: #000000;
+  }
+  .dark {
+    --border: #ffffff;
+    --ring: #ffffff;
+  }
+}
+
+/* Focus indicator that works on all backgrounds */
+.focus-ring-universal:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* Screen reader only (improved) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Make sr-only focusable */
+.sr-only-focusable:focus,
+.sr-only-focusable:focus-within {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: inherit;
+  margin: inherit;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* ============================================================================
+   PERFORMANCE OPTIMIZATIONS
+   ============================================================================ */
+
+/* GPU acceleration for animated elements */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Contain layout for better performance */
+.contain-layout {
+  contain: layout;
+}
+
+.contain-paint {
+  contain: paint;
+}
+
+.contain-strict {
+  contain: strict;
+}
+
+/* Content visibility for off-screen content */
+.content-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

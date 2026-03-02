@@ -1,0 +1,1 @@
+export { ClinicWorkstation } from "./ClinicWorkstation";
