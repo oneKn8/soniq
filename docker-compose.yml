@@ -1,0 +1,181 @@
+version: "3.8"
+
+services:
+  # Soniq API
+  api:
+    build:
+      context: ./soniq-api
+      dockerfile: Dockerfile
+    ports:
+      - "3100:3100"
+    environment:
+      - NODE_ENV=production
+      - PORT=3100
+      # Database
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      # LLM Configuration - Multi-provider fallback (Gemini -> OpenAI -> Groq)
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_CHAT_MODEL=${GROQ_CHAT_MODEL:-llama-3.1-8b-instant}
+      - GROQ_TOOL_MODEL=${GROQ_TOOL_MODEL:-llama-3.3-70b-versatile}
+      # Voice pipeline
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+      - CARTESIA_API_KEY=${CARTESIA_API_KEY}
+      - SIGNALWIRE_PROJECT_ID=${SIGNALWIRE_PROJECT_ID}
+      - SIGNALWIRE_API_TOKEN=${SIGNALWIRE_API_TOKEN}
+      - SIGNALWIRE_SPACE_URL=${SIGNALWIRE_SPACE_URL}
+      - VOICE_PROVIDER=custom
+      - BACKEND_URL=${BACKEND_URL:-http://localhost:3100}
+      # Optional: Together AI for fine-tuned models
+      - TOGETHER_API_KEY=${TOGETHER_API_KEY:-}
+      - LLM_PROVIDER=${LLM_PROVIDER:-groq}
+      # Internal API for LiveKit agent communication
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3100/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # Soniq Dashboard
+  dashboard:
+    build:
+      context: ./soniq-dashboard
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://api:3100}
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3100}
+      - NEXT_PUBLIC_TENANT_ID=${NEXT_PUBLIC_TENANT_ID:-dev-tenant}
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Redis - coordination for LiveKit server and SIP
+  # Exposed to host for services using network_mode: host (LiveKit, SIP)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:6379:6379"
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # LiveKit Server - WebRTC SFU
+  livekit:
+    image: livekit/livekit-server:v1.8
+    network_mode: host
+    volumes:
+      - ./soniq-agent/livekit/livekit.yaml:/etc/livekit.yaml:ro
+    command: --config /etc/livekit.yaml
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # LiveKit SIP - SIP to WebRTC bridge
+  sip:
+    image: livekit/sip:v1.8
+    network_mode: host
+    environment:
+      - SIP_CONFIG_FILE=/etc/sip.yaml
+    volumes:
+      - ./soniq-agent/livekit/sip.yaml:/etc/sip.yaml:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # LiveKit Python Agent - Voice AI agent
+  agent:
+    build:
+      context: ./soniq-agent
+      dockerfile: Dockerfile
+    environment:
+      - LIVEKIT_URL=ws://172.17.0.1:7880
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY:-APIc4ecf671a4b0eab56ceb2cd4}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET:-7b284f366c10a9f0319a29352402a300a01362e960a84c492baaaeedfc970386}
+      - INTERNAL_API_URL=http://api:3100
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CARTESIA_API_KEY=${CARTESIA_API_KEY}
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # Optional: Nginx reverse proxy for production
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - api
+      - dashboard
+    restart: unless-stopped
+    profiles:
+      - production
+
+volumes:
+  redis-data:
+
+networks:
+  default:
+    name: soniq-network
