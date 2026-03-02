@@ -1,8 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Zap } from "lucide-react";
 import Link from "next/link";
+import { SoniqMark } from "@/components/brand/SoniqMark";
+import { SoniqWordmark } from "@/components/brand/SoniqWordmark";
 import { cn } from "@/lib/utils";
 
 interface AuthLogoProps {
@@ -12,9 +13,9 @@ interface AuthLogoProps {
 }
 
 const SIZE_MAP = {
-  sm: { container: "h-8 w-8", icon: "h-4 w-4", text: "text-lg" },
-  md: { container: "h-10 w-10", icon: "h-5 w-5", text: "text-xl" },
-  lg: { container: "h-12 w-12", icon: "h-6 w-6", text: "text-2xl" },
+  sm: { container: "h-8 w-8", wordmark: "h-4", gap: "gap-2" },
+  md: { container: "h-10 w-10", wordmark: "h-5", gap: "gap-2.5" },
+  lg: { container: "h-12 w-12", wordmark: "h-6", gap: "gap-3" },
 };
 
 export function AuthLogo({
@@ -25,23 +26,25 @@ export function AuthLogo({
   const sizes = SIZE_MAP[size];
 
   return (
-    <Link href="/" className={cn("inline-flex items-center gap-2", className)}>
+    <Link
+      href="/"
+      aria-label="Soniq home"
+      className={cn("inline-flex items-center", sizes.gap, className)}
+    >
       <motion.div
-        className={cn(
-          "relative flex items-center justify-center rounded-xl bg-primary",
-          sizes.container,
-        )}
+        className={cn("relative", sizes.container)}
         whileHover={{ scale: 1.05 }}
         transition={{ type: "spring", stiffness: 400, damping: 10 }}
       >
-        {/* Glow effect */}
         <motion.div
-          className="absolute inset-0 rounded-xl bg-primary"
+          className="absolute inset-1 rounded-[16px] bg-cyan-400/20 blur-md"
           animate={{
+            opacity: [0.35, 0.7, 0.35],
+            scale: [0.94, 1.02, 0.94],
             boxShadow: [
-              "0 0 20px rgba(99, 102, 241, 0.3)",
-              "0 0 30px rgba(99, 102, 241, 0.5)",
-              "0 0 20px rgba(99, 102, 241, 0.3)",
+              "0 0 18px rgba(34, 211, 238, 0.18)",
+              "0 0 26px rgba(99, 102, 241, 0.28)",
+              "0 0 18px rgba(34, 211, 238, 0.18)",
             ],
           }}
           transition={{
@@ -50,13 +53,18 @@ export function AuthLogo({
             ease: "easeInOut",
           }}
         />
-        <Zap
-          className={cn("relative z-10 text-primary-foreground", sizes.icon)}
+        <SoniqMark
+          className="relative z-10 h-full w-full"
+          animated
+          decorative
         />
       </motion.div>
-      {showText && (
-        <span className={cn("font-bold", sizes.text)}>Soniq</span>
-      )}
+      {showText ? (
+        <SoniqWordmark
+          className={cn(sizes.wordmark, "w-auto text-foreground")}
+          decorative
+        />
+      ) : null}
     </Link>
   );
 }

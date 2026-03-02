@@ -1,6 +1,14 @@
-# Soniq
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/brand/soniq-readme-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="./docs/brand/soniq-readme-light.svg">
+    <img src="./docs/brand/soniq-readme-light.svg" alt="Animated Soniq logo" width="760">
+  </picture>
+</p>
 
-AI-powered voice agents for business phone handling. Soniq answers inbound calls, books appointments, takes orders, handles FAQs, and routes complex calls to staff -- 24/7 with sub-500ms response times.
+<p align="center">
+  AI-powered voice agents for business phone handling. Soniq answers inbound calls, books appointments, takes orders, handles FAQs, and routes complex calls to staff -- 24/7 with sub-500ms response times.
+</p>
 
 ## Architecture
 

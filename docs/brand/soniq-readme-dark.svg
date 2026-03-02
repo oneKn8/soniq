@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 280" fill="none">
+  <defs>
+    <linearGradient id="surface" x1="56" y1="34" x2="226" y2="228" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#111827" />
+      <stop offset="52%" stop-color="#09090B" />
+      <stop offset="100%" stop-color="#1E1B4B" />
+    </linearGradient>
+    <linearGradient id="brand" x1="92" y1="76" x2="210" y2="194" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#67E8F9" />
+      <stop offset="52%" stop-color="#22D3EE" />
+      <stop offset="100%" stop-color="#6366F1" />
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(140 140) rotate(90) scale(78)">
+      <stop offset="0%" stop-color="#22D3EE" stop-opacity="0.3" />
+      <stop offset="58%" stop-color="#22D3EE" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#22D3EE" stop-opacity="0" />
+    </radialGradient>
+    <filter id="blur-glow" x="12" y="12" width="256" height="256" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="10" />
+    </filter>
+  </defs>
+
+  <style>
+    @keyframes barLeft {
+      0%, 100% { transform: scaleY(0.78); opacity: 0.72; }
+      45% { transform: scaleY(1.08); opacity: 1; }
+    }
+
+    @keyframes barCenter {
+      0%, 100% { transform: scaleY(0.92); }
+      50% { transform: scaleY(1.16); }
+    }
+
+    @keyframes barRight {
+      0%, 100% { transform: scaleY(0.68); opacity: 0.66; }
+      50% { transform: scaleY(1.12); opacity: 1; }
+    }
+
+    @keyframes haloPulse {
+      0%, 100% { opacity: 0.9; transform: scale(0.985); }
+      50% { opacity: 1; transform: scale(1.025); }
+    }
+
+    @keyframes orbitSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .halo {
+      transform-origin: 140px 140px;
+      animation: haloPulse 3.2s ease-in-out infinite;
+    }
+
+    .bar {
+      transform-box: fill-box;
+      transform-origin: center bottom;
+    }
+
+    .bar-left {
+      animation: barLeft 1.4s ease-in-out infinite;
+    }
+
+    .bar-center {
+      animation: barCenter 1.4s ease-in-out infinite 0.1s;
+    }
+
+    .bar-right {
+      animation: barRight 1.4s ease-in-out infinite 0.2s;
+    }
+
+    .icon-orbiter {
+      transform-origin: 140px 140px;
+      animation: orbitSpin 6.5s linear infinite;
+    }
+
+    .q-orbiter {
+      transform-origin: 756px 132px;
+      animation: orbitSpin 7.2s linear infinite reverse;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .halo,
+      .bar-left,
+      .bar-center,
+      .bar-right,
+      .icon-orbiter,
+      .q-orbiter {
+        animation: none;
+      }
+    }
+  </style>
+
+  <g>
+    <circle cx="140" cy="140" r="92" fill="#67E8F9" opacity="0.1" filter="url(#blur-glow)" />
+    <rect x="40" y="40" width="200" height="200" rx="52" fill="url(#surface)" />
+    <rect x="40.5" y="40.5" width="199" height="199" rx="51.5" stroke="#A5B4FC" stroke-opacity="0.26" />
+    <circle class="halo" cx="140" cy="140" r="74" fill="url(#glow)" />
+
+    <circle cx="140" cy="140" r="54" stroke="url(#brand)" stroke-width="15" />
+    <path d="M178 178L204 204" stroke="url(#brand)" stroke-width="15" stroke-linecap="round" />
+
+    <g class="icon-orbiter">
+      <circle cx="140" cy="76" r="5" fill="#67E8F9" />
+    </g>
+
+    <rect class="bar bar-left" x="112" y="120" width="11" height="38" rx="5.5" fill="#F8FAFC" opacity="0.8" />
+    <rect class="bar bar-center" x="135" y="104" width="11" height="72" rx="5.5" fill="#F8FAFC" />
+    <rect class="bar bar-right" x="158" y="126" width="11" height="26" rx="5.5" fill="#F8FAFC" opacity="0.8" />
+  </g>
+
+  <g transform="translate(290 58)" stroke-linecap="round" stroke-linejoin="round" stroke-width="12">
+    <g stroke="#F8FAFC">
+      <path d="M86 30C78 20 64 14 46 14H36C19 14 6 26 6 42C6 56 16 65 35 70L57 75C77 80 88 89 88 103C88 120 74 132 55 132H40C25 132 13 127 4 117" />
+      <g transform="translate(116 0)">
+        <circle cx="34" cy="78" r="30" />
+      </g>
+      <g transform="translate(208 0)">
+        <path d="M0 132V70C0 37 18 16 46 16C74 16 92 37 92 70V132" />
+      </g>
+      <g transform="translate(334 0)">
+        <circle cx="6" cy="26" r="5.5" fill="#F8FAFC" stroke="none" />
+        <path d="M6 54V132" />
+      </g>
+    </g>
+
+    <g transform="translate(382 0)" stroke="url(#brand)">
+      <circle cx="34" cy="78" r="30" />
+      <path d="M56 100L83 127" />
+    </g>
+  </g>
+
+  <g class="q-orbiter">
+    <circle cx="756" cy="78" r="4.5" fill="#22D3EE" />
+  </g>
+</svg>
