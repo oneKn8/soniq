@@ -33,7 +33,7 @@
 <table>
 <tr>
 <td align="center"><strong>~450ms</strong><br><sub>voice-to-voice</sub></td>
-<td align="center"><strong>27</strong><br><sub>industry presets</sub></td>
+<td align="center"><strong>7</strong><br><sub>industry presets</sub></td>
 <td align="center"><strong>3</strong><br><sub>LLM providers</sub></td>
 <td align="center"><strong>Multi-tenant</strong><br><sub>architecture</sub></td>
 </tr>
@@ -93,17 +93,15 @@ Three services, one `docker compose up`:
 **Multi-tenant** -- Per-tenant config, prompts, phone numbers, and industry presets / tenant isolation at database level / white-label ready
 
 <details>
-<summary><strong>27 industry presets</strong></summary>
+<summary><strong>7 industry presets</strong></summary>
 <br>
 
-| Category | Industries |
-|:---------|:-----------|
-| Hospitality | Hotels, Restaurants, Cafes, Vacation Rentals, Event Venues |
-| Healthcare | Medical Clinics, Dental, Chiropractic, Veterinary, Physical Therapy |
-| Automotive | Dealerships, Auto Service, Car Rentals, Body Shops, Tire Centers |
-| Professional | Law Firms, Accounting, Real Estate, Consulting, Financial |
-| Personal Care | Hair Salons, Spas, Nail Studios, Gyms, Yoga Studios |
-| Property | Contractors, Plumbing, HVAC, Cleaning, Landscaping |
+| Category | Presets |
+|:---------|:--------|
+| Hospitality | Hotel, Motel, Restaurant |
+| Healthcare | Medical, Dental |
+| Automotive | Auto Service |
+| Personal Care | Salon |
 
 Each preset includes custom terminology, intents, appointment types, escalation triggers, and voice prompts.
 </details>
