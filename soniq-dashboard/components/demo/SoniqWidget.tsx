@@ -47,7 +47,7 @@ function getSessionId(): string {
 // API configuration - production URL as fallback
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
-  "https://api.soniqai.com";
+  "https://api.soniq.ai";
 const TENANT_ID =
   process.env.NEXT_PUBLIC_TENANT_ID || "deadbeef-cafe-4000-a000-000000000002";
 
