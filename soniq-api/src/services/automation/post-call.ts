@@ -4,7 +4,7 @@
 
 import { insertOne, updateOne } from "../database/query-helpers.js";
 import { tenantQueryOne } from "../database/pool.js";
-import { getPipelineConfig } from "../../config/industry-pipeline.js";
+import { getPipelineConfig } from "../../config/universal-pipeline.js";
 
 interface PostCallContext {
   tenantId: string;
@@ -15,7 +15,6 @@ interface PostCallContext {
   outcomeType: string;
   durationSeconds: number;
   status: string;
-  industry: string;
 }
 
 interface ContactRow {
@@ -40,7 +39,7 @@ export async function runPostCallAutomation(
 ): Promise<void> {
   if (!ctx.contactId) return;
 
-  const config = getPipelineConfig(ctx.industry);
+  const config = getPipelineConfig();
 
   // Get contact info for rule evaluation
   const contact = await tenantQueryOne<ContactRow>(
