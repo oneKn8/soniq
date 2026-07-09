@@ -389,11 +389,12 @@ contactsRoutes.post("/find-or-create", async (c) => {
     const tenantId = getTenantId(c);
     const body = await c.req.json();
 
-    if (!body.phone) {
+    const parsed = z.object({ phone: z.string().min(1) }).safeParse(body);
+    if (!parsed.success) {
       return c.json({ error: "phone is required" }, 400);
     }
 
-    const contact = await findOrCreateByPhone(tenantId, body.phone, body);
+    const contact = await findOrCreateByPhone(tenantId, parsed.data.phone, body);
 
     return c.json(contact);
   } catch (error) {
@@ -721,15 +722,20 @@ contactsRoutes.post("/import", async (c) => {
 
     if (contentType.includes("application/json")) {
       const body = await c.req.json();
-      records = body.records;
-      options.skipDuplicates = body.skip_duplicates;
-      options.updateExisting = body.update_existing;
+      const importBodySchema = z.object({
+        records: z.array(z.unknown()),
+        skip_duplicates: z.boolean().optional(),
+        update_existing: z.boolean().optional(),
+      });
+      const parsedBody = importBodySchema.safeParse(body);
+      if (!parsedBody.success) {
+        return c.json({ error: "records must be an array" }, 400);
+      }
+      records = parsedBody.data.records;
+      options.skipDuplicates = parsedBody.data.skip_duplicates;
+      options.updateExisting = parsedBody.data.update_existing;
     } else {
       return c.json({ error: "Content-Type must be application/json" }, 400);
-    }
-
-    if (!Array.isArray(records)) {
-      return c.json({ error: "records must be an array" }, 400);
     }
 
     if (records.length > 10000) {
@@ -791,8 +797,18 @@ contactsRoutes.post("/export", async (c) => {
     const tenantId = getTenantId(c);
     const body = await c.req.json();
 
-    const format = body.format || "json";
-    const filters: ContactFilters = body.filters || {};
+    const parsed = z
+      .object({
+        format: z.string().optional(),
+        filters: z.record(z.unknown()).optional(),
+      })
+      .safeParse(body);
+    if (!parsed.success) {
+      return c.json({ error: "Invalid request body" }, 400);
+    }
+
+    const format = parsed.data.format || "json";
+    const filters: ContactFilters = (parsed.data.filters as ContactFilters) || {};
 
     // Get all matching contacts
     const result = await searchContacts(tenantId, filters, { limit: 100000 });

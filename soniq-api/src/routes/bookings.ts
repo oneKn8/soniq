@@ -318,9 +318,16 @@ bookingsRoutes.delete("/:id", async (c) => {
   try {
     const tenantId = getTenantId(c);
     const id = c.req.param("id");
-    const body = await c.req.json().catch(() => ({}));
+    const raw = await c.req.json().catch(() => ({}));
+    const parsed = z.object({ reason: z.string().optional() }).safeParse(raw);
+    if (!parsed.success) {
+      return c.json(
+        { error: "Validation failed", details: parsed.error.issues },
+        400,
+      );
+    }
 
-    await cancelBooking(tenantId, id, body.reason);
+    await cancelBooking(tenantId, id, parsed.data.reason);
 
     return c.json({ success: true });
   } catch (error) {
@@ -398,9 +405,16 @@ bookingsRoutes.post("/:id/cancel", async (c) => {
   try {
     const tenantId = getTenantId(c);
     const id = c.req.param("id");
-    const body = await c.req.json().catch(() => ({}));
+    const raw = await c.req.json().catch(() => ({}));
+    const parsed = z.object({ reason: z.string().optional() }).safeParse(raw);
+    if (!parsed.success) {
+      return c.json(
+        { error: "Validation failed", details: parsed.error.issues },
+        400,
+      );
+    }
 
-    const booking = await cancelBooking(tenantId, id, body.reason);
+    const booking = await cancelBooking(tenantId, id, parsed.data.reason);
 
     return c.json(booking);
   } catch (error) {
