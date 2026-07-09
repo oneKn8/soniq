@@ -2,6 +2,7 @@
 // GPT-4o mini for reliable fallback
 
 import OpenAI from "openai";
+import { logger } from "../../lib/logger.js";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
@@ -15,11 +16,9 @@ export const openaiClient = OPENAI_API_KEY
 const MODEL_NAME = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 
 if (openaiClient) {
-  console.log(`[OPENAI] Initialized with model: ${MODEL_NAME}`);
+  logger.info(`[OPENAI] Initialized with model: ${MODEL_NAME}`);
 } else {
-  console.error(
-    "[OPENAI] NOT INITIALIZED - OPENAI_API_KEY is missing or empty",
-  );
+  logger.error("[OPENAI] NOT INITIALIZED - OPENAI_API_KEY is missing or empty");
 }
 
 export const modelName = MODEL_NAME;

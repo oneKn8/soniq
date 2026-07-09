@@ -26,6 +26,7 @@ import {
   ImportResult,
   ContactImportRecord,
 } from "../../types/crm";
+import { logger } from "../../lib/logger.js";
 
 // ============================================================================
 // CORE CRUD
@@ -569,9 +570,7 @@ export async function updateMetrics(
       id: contactId,
     });
   } catch (error) {
-    console.error(
-      `Failed to update contact metrics: ${error instanceof Error ? error.message : "Unknown error"}`,
-    );
+    logger.error(`Failed to update contact metrics: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 }
 

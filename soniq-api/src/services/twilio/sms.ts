@@ -2,6 +2,7 @@ import { queryOne } from "../database/client.js";
 import { insertOne, updateOne } from "../database/query-helpers.js";
 import { getTwilioClient } from "./client.js";
 import { getTemplate } from "./templates.js";
+import { logger } from "../../lib/logger.js";
 
 interface QueueSmsParams {
   tenantId: string;
@@ -48,7 +49,7 @@ export async function queueSms(params: QueueSmsParams): Promise<void> {
   const fromPhone = process.env.TWILIO_PHONE_NUMBER;
 
   if (!fromPhone) {
-    console.warn("[SMS] No TWILIO_PHONE_NUMBER configured, skipping SMS");
+    logger.warn("[SMS] No TWILIO_PHONE_NUMBER configured, skipping SMS");
     return;
   }
 
@@ -72,7 +73,7 @@ export async function queueSms(params: QueueSmsParams): Promise<void> {
     const client = getTwilioClient();
 
     if (!client) {
-      console.warn("[SMS] Twilio client not configured, message queued");
+      logger.warn("[SMS] Twilio client not configured, message queued");
       return;
     }
 
@@ -92,9 +93,9 @@ export async function queueSms(params: QueueSmsParams): Promise<void> {
       { id: smsRecord.id },
     );
 
-    console.log(`[SMS] Sent to ${toPhone}, SID: ${message.sid}`);
+    logger.info(`[SMS] Sent to ${toPhone}, SID: ${message.sid}`);
   } catch (error) {
-    console.error("[SMS] Failed to send:", error);
+    logger.error({ error }, "[SMS] Failed to send:");
 
     // Update record with error
     await updateOne(
@@ -124,13 +125,13 @@ export async function sendReminder(bookingId: string): Promise<boolean> {
   );
 
   if (!booking) {
-    console.error("[SMS] Booking not found:", bookingId);
+    logger.error({ bookingId }, "[SMS] Booking not found:");
     throw new Error(`Booking not found: ${bookingId}`);
   }
 
   // Check if already reminded
   if (booking.reminder_sent) {
-    console.log("[SMS] Reminder already sent for:", bookingId);
+    logger.info({ bookingId }, "[SMS] Reminder already sent for:");
     return true;
   }
 
@@ -168,14 +169,14 @@ export async function sendSMS(toPhone: string, body: string): Promise<void> {
   const fromPhone = process.env.TWILIO_PHONE_NUMBER;
 
   if (!fromPhone) {
-    console.warn("[SMS] No TWILIO_PHONE_NUMBER configured, skipping SMS");
+    logger.warn("[SMS] No TWILIO_PHONE_NUMBER configured, skipping SMS");
     return;
   }
 
   const client = getTwilioClient();
 
   if (!client) {
-    console.warn("[SMS] Twilio client not configured");
+    logger.warn("[SMS] Twilio client not configured");
     return;
   }
 
@@ -185,7 +186,7 @@ export async function sendSMS(toPhone: string, body: string): Promise<void> {
     to: toPhone,
   });
 
-  console.log(`[SMS] Sent to ${toPhone}, SID: ${message.sid}`);
+  logger.info(`[SMS] Sent to ${toPhone}, SID: ${message.sid}`);
 }
 
 function formatDate(date: string): string {

@@ -1,4 +1,5 @@
-// SignalWire Client Setup
+
+import { logger } from "../../lib/logger.js";// SignalWire Client Setup
 // Telephony provider (Twilio-compatible API, 50% cheaper)
 
 const SIGNALWIRE_PROJECT_ID = process.env.SIGNALWIRE_PROJECT_ID;
@@ -7,7 +8,7 @@ const SIGNALWIRE_SPACE_URL = process.env.SIGNALWIRE_SPACE_URL;
 const SIGNALWIRE_PHONE_NUMBER = process.env.SIGNALWIRE_PHONE_NUMBER;
 
 if (!SIGNALWIRE_PROJECT_ID || !SIGNALWIRE_API_TOKEN || !SIGNALWIRE_SPACE_URL) {
-  console.warn("[SIGNALWIRE] Warning: SignalWire credentials not fully set");
+  logger.warn("[SIGNALWIRE] Warning: SignalWire credentials not fully set");
 }
 
 export const signalwireConfig = {
@@ -130,10 +131,7 @@ export async function getPhoneNumberSid(
   );
 
   if (!response.ok) {
-    console.error(
-      "[SIGNALWIRE] Failed to get phone numbers:",
-      await response.text(),
-    );
+    logger.error({ detail: await response.text() }, "[SIGNALWIRE] Failed to get phone numbers:");
     return null;
   }
 
@@ -177,14 +175,11 @@ export async function configurePhoneNumberWebhook(
   );
 
   if (!response.ok) {
-    console.error(
-      "[SIGNALWIRE] Failed to configure webhook:",
-      await response.text(),
-    );
+    logger.error({ detail: await response.text() }, "[SIGNALWIRE] Failed to configure webhook:");
     return false;
   }
 
-  console.log("[SIGNALWIRE] Phone number webhook configured successfully");
+  logger.info("[SIGNALWIRE] Phone number webhook configured successfully");
   return true;
 }
 
@@ -226,16 +221,14 @@ export async function transferCall(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("[SIGNALWIRE] Transfer failed:", errorText);
+      logger.error({ errorText }, "[SIGNALWIRE] Transfer failed:");
       return { success: false, error: errorText };
     }
 
-    console.log(
-      `[SIGNALWIRE] Call ${callSid} transfer initiated to ${destinationPhone}`,
-    );
+    logger.info(`[SIGNALWIRE] Call ${callSid} transfer initiated to ${destinationPhone}`);
     return { success: true };
   } catch (error) {
-    console.error("[SIGNALWIRE] Transfer error:", error);
+    logger.error({ error }, "[SIGNALWIRE] Transfer error:");
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -250,7 +243,7 @@ export async function setupSignalWirePhone(backendUrl: string): Promise<void> {
     throw new Error("SIGNALWIRE_PHONE_NUMBER not set");
   }
 
-  console.log(`[SIGNALWIRE] Setting up phone number: ${phoneNumber}`);
+  logger.info(`[SIGNALWIRE] Setting up phone number: ${phoneNumber}`);
 
   // Get phone number SID
   const sid = await getPhoneNumberSid(phoneNumber);
@@ -260,7 +253,7 @@ export async function setupSignalWirePhone(backendUrl: string): Promise<void> {
     );
   }
 
-  console.log(`[SIGNALWIRE] Found phone SID: ${sid}`);
+  logger.info(`[SIGNALWIRE] Found phone SID: ${sid}`);
 
   // Configure webhooks
   const voiceUrl = appendWebhookSecret(`${backendUrl}/signalwire/voice`);
@@ -271,5 +264,5 @@ export async function setupSignalWirePhone(backendUrl: string): Promise<void> {
     throw new Error("Failed to configure phone number webhook");
   }
 
-  console.log(`[SIGNALWIRE] Webhook configured: ${voiceUrl}`);
+  logger.info(`[SIGNALWIRE] Webhook configured: ${voiceUrl}`);
 }

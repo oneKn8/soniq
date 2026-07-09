@@ -2,6 +2,7 @@
 // Target: <50ms lookup time for incoming calls
 
 import { Contact } from "../../types/crm";
+import { logger } from "../../lib/logger.js";
 
 interface CacheEntry {
   contact: Contact;
@@ -176,6 +177,6 @@ export const contactCache = new ContactCache({
 setInterval(() => {
   const pruned = contactCache.prune();
   if (pruned > 0) {
-    console.log(`[ContactCache] Pruned ${pruned} expired entries`);
+    logger.info(`[ContactCache] Pruned ${pruned} expired entries`);
   }
 }, 60 * 1000);

@@ -8,6 +8,7 @@ import { queryOne, queryAll } from "../database/client.js";
 import { insertOne, updateOne } from "../database/query-helpers.js";
 import type { BookingRequest, BookingConfirmation } from "./types.js";
 import type { PendingBooking } from "../../types/database.js";
+import { logger } from "../../lib/logger.js";
 
 export interface PendingBookingWithCall extends PendingBooking {
   calls?: {
@@ -91,7 +92,7 @@ export async function createPendingBooking(
       status: "pending",
     });
 
-    console.log(`[PENDING_BOOKING] Created pending booking ${data.id}`);
+    logger.info(`[PENDING_BOOKING] Created pending booking ${data.id}`);
 
     return {
       id: data.id,
@@ -100,7 +101,7 @@ export async function createPendingBooking(
       endTime: booking.endTime,
     };
   } catch (error) {
-    console.error("[PENDING_BOOKING] Creation failed:", error);
+    logger.error({ error }, "[PENDING_BOOKING] Creation failed:");
     throw new Error(
       `Failed to create pending booking: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
@@ -130,11 +131,9 @@ export async function confirmPendingBooking(
       throw new Error("Pending booking not found");
     }
 
-    console.log(
-      `[PENDING_BOOKING] Confirmed booking ${bookingId} by ${userId}`,
-    );
+    logger.info(`[PENDING_BOOKING] Confirmed booking ${bookingId} by ${userId}`);
   } catch (error) {
-    console.error("[PENDING_BOOKING] Confirmation failed:", error);
+    logger.error({ error }, "[PENDING_BOOKING] Confirmation failed:");
     throw new Error(
       `Failed to confirm pending booking: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
@@ -180,9 +179,9 @@ export async function rejectPendingBooking(
       throw new Error("Pending booking not found");
     }
 
-    console.log(`[PENDING_BOOKING] Rejected booking ${bookingId} by ${userId}`);
+    logger.info(`[PENDING_BOOKING] Rejected booking ${bookingId} by ${userId}`);
   } catch (error) {
-    console.error("[PENDING_BOOKING] Rejection failed:", error);
+    logger.error({ error }, "[PENDING_BOOKING] Rejection failed:");
     throw new Error(
       `Failed to reject pending booking: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
@@ -242,7 +241,7 @@ export async function getPendingBookings(
         : undefined,
     }));
   } catch (error) {
-    console.error("[PENDING_BOOKING] Failed to get bookings:", error);
+    logger.error({ error }, "[PENDING_BOOKING] Failed to get bookings:");
     throw new Error(
       `Failed to get pending bookings: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
@@ -297,7 +296,7 @@ export async function getPendingBookingById(
         : undefined,
     };
   } catch (error) {
-    console.error("[PENDING_BOOKING] Failed to get booking:", error);
+    logger.error({ error }, "[PENDING_BOOKING] Failed to get booking:");
     throw new Error(
       `Failed to get pending booking: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
@@ -351,16 +350,11 @@ export async function convertPendingToConfirmed(
     // Update pending booking status
     await confirmPendingBooking(bookingId, userId);
 
-    console.log(
-      `[PENDING_BOOKING] Converted pending ${bookingId} to confirmed ${booking.id}`,
-    );
+    logger.info(`[PENDING_BOOKING] Converted pending ${bookingId} to confirmed ${booking.id}`);
 
     return booking.id;
   } catch (error) {
-    console.error(
-      "[PENDING_BOOKING] Failed to create confirmed booking:",
-      error,
-    );
+    logger.error({ error }, "[PENDING_BOOKING] Failed to create confirmed booking:");
     throw new Error(
       `Failed to create booking: ${error instanceof Error ? error.message : "Unknown error"}`,
     );

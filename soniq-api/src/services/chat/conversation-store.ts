@@ -2,6 +2,7 @@
 // In-memory store for demo, can be replaced with Redis for production
 
 import type { ConversationMessage } from "../../types/voice.js";
+import { logger } from "../../lib/logger.js";
 
 // In-memory conversation store
 const conversations = new Map<
@@ -156,7 +157,7 @@ setInterval(
   () => {
     const cleaned = cleanupExpiredSessions();
     if (cleaned > 0) {
-      console.log(`[CHAT] Cleaned up ${cleaned} expired sessions`);
+      logger.info(`[CHAT] Cleaned up ${cleaned} expired sessions`);
     }
   },
   5 * 60 * 1000,

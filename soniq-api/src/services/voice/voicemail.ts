@@ -3,6 +3,7 @@
 
 import { queryOne, queryAll } from "../database/client.js";
 import { insertOne, updateOne } from "../database/query-helpers.js";
+import { logger } from "../../lib/logger.js";
 
 export interface VoicemailConfig {
   enabled: boolean;
@@ -139,7 +140,7 @@ export async function saveVoicemail(
 
     return { success: true, id: data.id };
   } catch (error) {
-    console.error("[VOICEMAIL] Save error:", error);
+    logger.error({ error }, "[VOICEMAIL] Save error:");
     throw error;
   }
 }
@@ -166,7 +167,7 @@ export async function updateVoicemailRecording(
 
     return true;
   } catch (error) {
-    console.error("[VOICEMAIL] Update recording error:", error);
+    logger.error({ error }, "[VOICEMAIL] Update recording error:");
     throw error;
   }
 }
@@ -183,7 +184,7 @@ export async function updateVoicemailTranscript(
 
     return true;
   } catch (error) {
-    console.error("[VOICEMAIL] Update transcript error:", error);
+    logger.error({ error }, "[VOICEMAIL] Update transcript error:");
     throw error;
   }
 }
@@ -245,7 +246,7 @@ export async function getVoicemails(
       total: parseInt(countResult?.total || "0", 10),
     };
   } catch (error) {
-    console.error("[VOICEMAIL] Get error:", error);
+    logger.error({ error }, "[VOICEMAIL] Get error:");
     throw error;
   }
 }
@@ -262,7 +263,7 @@ export async function updateVoicemailStatus(
 
     return true;
   } catch (error) {
-    console.error("[VOICEMAIL] Update status error:", error);
+    logger.error({ error }, "[VOICEMAIL] Update status error:");
     throw error;
   }
 }

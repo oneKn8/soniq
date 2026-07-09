@@ -4,6 +4,7 @@
  */
 
 import { randomBytes } from "crypto";
+import { logger } from "../../lib/logger.js";
 
 const SIGNALWIRE_SPACE_URL = process.env.SIGNALWIRE_SPACE_URL || "";
 const SIGNALWIRE_PROJECT_ID = process.env.SIGNALWIRE_PROJECT_ID || "";
@@ -80,7 +81,7 @@ export async function createSipEndpoint(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("[SIP] Failed to create endpoint:", errorText);
+      logger.error({ errorText }, "[SIP] Failed to create endpoint:");
       return { error: "Failed to create SIP endpoint" };
     }
 
@@ -93,7 +94,7 @@ export async function createSipEndpoint(
     // Build the SIP URI for the business to configure in their PBX
     const sipUri = `${username}@${SIGNALWIRE_SPACE_URL}`;
 
-    console.log(`[SIP] Created endpoint for tenant ${tenantId}: ${sipUri}`);
+    logger.info(`[SIP] Created endpoint for tenant ${tenantId}: ${sipUri}`);
 
     return {
       endpoint: {
@@ -104,7 +105,7 @@ export async function createSipEndpoint(
       },
     };
   } catch (e) {
-    console.error("[SIP] Create endpoint exception:", e);
+    logger.error({ e }, "[SIP] Create endpoint exception:");
     return { error: "Failed to create SIP endpoint" };
   }
 }
@@ -126,14 +127,14 @@ export async function configureSipRouting(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("[SIP] Failed to configure routing:", errorText);
+      logger.error({ errorText }, "[SIP] Failed to configure routing:");
       return { success: false, error: "Failed to configure SIP routing" };
     }
 
-    console.log(`[SIP] Routing configured for endpoint ${endpointId}`);
+    logger.info(`[SIP] Routing configured for endpoint ${endpointId}`);
     return { success: true };
   } catch (e) {
-    console.error("[SIP] Configure routing exception:", e);
+    logger.error({ e }, "[SIP] Configure routing exception:");
     return { success: false, error: "Failed to configure SIP routing" };
   }
 }
@@ -149,7 +150,7 @@ export async function getSipEndpointStatus(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("[SIP] Failed to get endpoint status:", errorText);
+      logger.error({ errorText }, "[SIP] Failed to get endpoint status:");
       return { registered: false, error: "Failed to check SIP status" };
     }
 
@@ -160,7 +161,7 @@ export async function getSipEndpointStatus(
 
     return { registered: !!data.online };
   } catch (e) {
-    console.error("[SIP] Get status exception:", e);
+    logger.error({ e }, "[SIP] Get status exception:");
     return { registered: false, error: "Failed to check SIP status" };
   }
 }
@@ -179,13 +180,13 @@ export async function deleteSipEndpoint(
 
     if (!response.ok && response.status !== 204) {
       const errorText = await response.text();
-      console.error("[SIP] Failed to delete endpoint:", errorText);
+      logger.error({ errorText }, "[SIP] Failed to delete endpoint:");
       return { success: false, error: "Failed to delete SIP endpoint" };
     }
 
     return { success: true };
   } catch (e) {
-    console.error("[SIP] Delete endpoint exception:", e);
+    logger.error({ e }, "[SIP] Delete endpoint exception:");
     return { success: false, error: "Failed to delete SIP endpoint" };
   }
 }

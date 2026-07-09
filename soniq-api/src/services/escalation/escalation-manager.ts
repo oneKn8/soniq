@@ -1,4 +1,5 @@
-// Smart Escalation Manager
+
+import { logger } from "../../lib/logger.js";// Smart Escalation Manager
 // Handles human escalation requests intelligently
 // Key principle: Don't escalate just because user asks - prove AI can't help first
 
@@ -180,7 +181,7 @@ export function evaluateEscalation(
 
   // First request - soft deflect
   if (state.humanRequestCount === 1) {
-    console.log("[ESCALATION] First human request - deflecting");
+    logger.info("[ESCALATION] First human request - deflecting");
     return {
       shouldEscalate: false,
       deflectionResponse: getDeflectionResponse("first_ask"),
@@ -191,9 +192,7 @@ export function evaluateEscalation(
   if (state.humanRequestCount === 2) {
     // If valid reason provided, escalate
     if (state.validReasonProvided) {
-      console.log(
-        `[ESCALATION] Valid reason provided: ${state.validReason} - escalating`,
-      );
+      logger.info(`[ESCALATION] Valid reason provided: ${state.validReason} - escalating`);
       return {
         shouldEscalate: true,
         escalationReason: state.validReason,
@@ -201,7 +200,7 @@ export function evaluateEscalation(
       };
     }
 
-    console.log("[ESCALATION] Second human request - final deflect attempt");
+    logger.info("[ESCALATION] Second human request - final deflect attempt");
     return {
       shouldEscalate: false,
       deflectionResponse: getDeflectionResponse("second_ask"),
@@ -211,7 +210,7 @@ export function evaluateEscalation(
   // Third request - last chance or valid reason
   if (state.humanRequestCount === 3) {
     if (state.validReasonProvided) {
-      console.log(`[ESCALATION] Third request with valid reason - escalating`);
+      logger.info(`[ESCALATION] Third request with valid reason - escalating`);
       return {
         shouldEscalate: true,
         escalationReason: state.validReason,
@@ -219,7 +218,7 @@ export function evaluateEscalation(
       };
     }
 
-    console.log("[ESCALATION] Third request, no valid reason - final try");
+    logger.info("[ESCALATION] Third request, no valid reason - final try");
     return {
       shouldEscalate: false,
       deflectionResponse: getDeflectionResponse("third_ask_no_reason"),
@@ -227,9 +226,7 @@ export function evaluateEscalation(
   }
 
   // Fourth+ request - respect user autonomy, escalate
-  console.log(
-    `[ESCALATION] ${state.humanRequestCount} requests - escalating (user persistence)`,
-  );
+  logger.info(`[ESCALATION] ${state.humanRequestCount} requests - escalating (user persistence)`);
   return {
     shouldEscalate: true,
     escalationReason: "persistent_request",
@@ -247,13 +244,13 @@ export function shouldEscalateOnAIFailure(
 ): boolean {
   // If AI has failed 3+ times in a row, escalate
   if (consecutiveFailures >= 3) {
-    console.log("[ESCALATION] AI failed 3+ times - escalating");
+    logger.info("[ESCALATION] AI failed 3+ times - escalating");
     return true;
   }
 
   // If total conversation is too long without resolution
   if (state.totalTurns >= 10 && !state.taskCompleted) {
-    console.log("[ESCALATION] 10+ turns without completion - escalating");
+    logger.info("[ESCALATION] 10+ turns without completion - escalating");
     return true;
   }
 

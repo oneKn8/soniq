@@ -21,6 +21,7 @@ import {
   checkHealth,
   closePool,
 } from "./pool.js";
+import { logger } from "../../lib/logger.js";
 
 // Re-export pool functions
 export {
@@ -62,5 +63,5 @@ export async function getDbStatus(): Promise<{
  */
 export function initDatabase(): void {
   initPool();
-  console.log("[DB] Database client initialized");
+  logger.info("[DB] Database client initialized");
 }

@@ -1,5 +1,6 @@
 import { queryAll, queryOne } from "./client.js";
 import type { Tenant } from "../../types/database.js";
+import { logger } from "../../lib/logger.js";
 
 /**
  * In-Memory Tenant Cache
@@ -31,11 +32,11 @@ export async function initTenantCache(): Promise<void> {
     // Set up periodic refresh
     setInterval(() => {
       refreshCache().catch((err) => {
-        console.error("[CACHE] Failed to refresh tenant cache:", err);
+        logger.error({ err }, "[CACHE] Failed to refresh tenant cache:");
       });
     }, REFRESH_INTERVAL_MS);
   } catch (err) {
-    console.error("[CACHE] Failed to initialize tenant cache:", err);
+    logger.error({ err }, "[CACHE] Failed to initialize tenant cache:");
     // Don't throw - we can still query DB as fallback
   }
 }
@@ -70,7 +71,7 @@ async function refreshCache(): Promise<void> {
   lastRefresh = new Date();
   const latency = Date.now() - startTime;
 
-  console.log(`[CACHE] Refreshed ${tenants.length} tenants in ${latency}ms`);
+  logger.info(`[CACHE] Refreshed ${tenants.length} tenants in ${latency}ms`);
 }
 
 /**
@@ -117,7 +118,7 @@ export async function getTenantBySipUri(
   }
 
   // Fallback to DB query via phone_configurations
-  console.log("[CACHE] SIP cache miss, querying database for:", cleaned);
+  logger.info({ cleaned }, "[CACHE] SIP cache miss, querying database for:");
 
   try {
     const result = await queryOne<{ tenant_id: string }>(
@@ -173,7 +174,7 @@ export async function getTenantByPhoneWithFallback(
   }
 
   // Fallback to DB query
-  console.log("[CACHE] Cache miss, querying database for:", normalized);
+  logger.info({ normalized }, "[CACHE] Cache miss, querying database for:");
 
   try {
     const tenant = await queryOne<Tenant>(

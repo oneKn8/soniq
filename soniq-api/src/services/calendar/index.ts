@@ -17,6 +17,7 @@ import { BuiltinCalendarService } from "./builtin.js";
 import { createPendingBooking } from "./pending.js";
 import { queryOne } from "../database/client.js";
 import type { TenantIntegration } from "../../types/database.js";
+import { logger } from "../../lib/logger.js";
 
 /**
  * Get the appropriate calendar service for a tenant
@@ -40,21 +41,21 @@ export async function getCalendarService(
   if (integration) {
     switch (integration.provider) {
       case "google_calendar":
-        console.log(`[CALENDAR] Using Google Calendar for tenant ${tenantId}`);
+        logger.info(`[CALENDAR] Using Google Calendar for tenant ${tenantId}`);
         return new GoogleCalendarService(integration);
 
       case "outlook":
-        console.log(`[CALENDAR] Using Outlook for tenant ${tenantId}`);
+        logger.info(`[CALENDAR] Using Outlook for tenant ${tenantId}`);
         return new OutlookCalendarService(integration);
 
       case "calendly":
-        console.log(`[CALENDAR] Using Calendly for tenant ${tenantId}`);
+        logger.info(`[CALENDAR] Using Calendly for tenant ${tenantId}`);
         return new CalendlyService(integration);
     }
   }
 
   // Default to builtin calendar
-  console.log(`[CALENDAR] Using built-in calendar for tenant ${tenantId}`);
+  logger.info(`[CALENDAR] Using built-in calendar for tenant ${tenantId}`);
   return new BuiltinCalendarService(tenantId);
 }
 
@@ -71,10 +72,7 @@ export async function createBookingWithFallback(
     const service = await getCalendarService(tenantId);
     return await service.createBooking(tenantId, booking);
   } catch (error) {
-    console.error(
-      "[CALENDAR] Booking failed, creating pending booking:",
-      error,
-    );
+    logger.error({ error }, "[CALENDAR] Booking failed, creating pending booking:");
     return await createPendingBooking(tenantId, booking, callId);
   }
 }
@@ -90,7 +88,7 @@ export async function checkAvailabilityWithFallback(
     const service = await getCalendarService(tenantId);
     return await service.checkAvailability(tenantId, dateRange);
   } catch (error) {
-    console.error("[CALENDAR] Availability check failed:", error);
+    logger.error({ error }, "[CALENDAR] Availability check failed:");
     // Return empty array on error - caller should handle this case
     return [];
   }
@@ -107,7 +105,7 @@ export async function getBookingsWithFallback(
     const service = await getCalendarService(tenantId);
     return await service.getBookings(tenantId, dateRange);
   } catch (error) {
-    console.error("[CALENDAR] Get bookings failed:", error);
+    logger.error({ error }, "[CALENDAR] Get bookings failed:");
     return [];
   }
 }

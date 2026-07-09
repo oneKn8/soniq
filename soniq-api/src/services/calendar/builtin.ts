@@ -12,6 +12,7 @@ import type {
 } from "./types.js";
 import { queryOne, queryAll } from "../database/client.js";
 import { insertOne, updateOne } from "../database/query-helpers.js";
+import { logger } from "../../lib/logger.js";
 
 interface OperatingHours {
   [day: string]: {
@@ -130,7 +131,7 @@ export class BuiltinCalendarService implements CalendarService {
         endTime: booking.endTime,
       };
     } catch (error) {
-      console.error("[BUILTIN_CALENDAR] Booking creation failed:", error);
+      logger.error({ error }, "[BUILTIN_CALENDAR] Booking creation failed:");
       throw new Error(
         `Failed to create booking: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
@@ -157,7 +158,7 @@ export class BuiltinCalendarService implements CalendarService {
 
       return true;
     } catch (error) {
-      console.error("[BUILTIN_CALENDAR] Booking cancellation failed:", error);
+      logger.error({ error }, "[BUILTIN_CALENDAR] Booking cancellation failed:");
       throw new Error(
         `Failed to cancel booking: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
@@ -200,7 +201,7 @@ export class BuiltinCalendarService implements CalendarService {
         };
       });
     } catch (error) {
-      console.error("[BUILTIN_CALENDAR] Failed to get bookings:", error);
+      logger.error({ error }, "[BUILTIN_CALENDAR] Failed to get bookings:");
       throw new Error(
         `Failed to get bookings: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
