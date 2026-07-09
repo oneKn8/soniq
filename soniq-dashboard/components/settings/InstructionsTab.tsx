@@ -303,12 +303,8 @@ export default function InstructionsTab() {
 
   if (isLoading || !tenant) return null;
 
-  const industry = tenant.industry;
-
-  // Filter questions by industry
-  const filteredQuestions = QUESTIONS.filter(
-    (q) => !q.industries || q.industries.includes(industry),
-  );
+  // All questions are universal; no per-industry filtering.
+  const filteredQuestions = QUESTIONS;
 
   return (
     <div className="max-w-2xl space-y-8">

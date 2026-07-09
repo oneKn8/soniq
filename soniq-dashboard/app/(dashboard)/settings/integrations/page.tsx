@@ -164,13 +164,8 @@ export default function IntegrationsSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
 
-  const industry = currentTenant?.industry;
-
-  // Filter integrations relevant to this industry
-  const availableIntegrations = INTEGRATION_OPTIONS.filter((integration) => {
-    if (!integration.industries) return true;
-    return industry && integration.industries.includes(industry);
-  });
+  // All integrations are offered universally (no per-industry filtering).
+  const availableIntegrations = INTEGRATION_OPTIONS;
 
   // Group by type
   const calendarIntegrations = availableIntegrations.filter(
