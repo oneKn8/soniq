@@ -1,10 +1,13 @@
-# LiveKit Server Configuration
-# Self-hosted on Hetzner for Soniq voice pipeline
+# LiveKit Server Configuration (template)
+# Copy to livekit.yaml and fill in real values. livekit.yaml is gitignored.
+# Self-hosted on Hetzner for Soniq voice pipeline.
+# Generate keys with: livekit-server generate-keys
 
 port: 7880
 
 keys:
-  APIc4ecf671a4b0eab56ceb2cd4: 7b284f366c10a9f0319a29352402a300a01362e960a84c492baaaeedfc970386
+  # API_KEY: API_SECRET  (rotate any key that was ever committed)
+  APIxxxxxxxxxxxxxxxxxxxxxxx: replace-with-livekit-api-secret
 
 rtc:
   # WebRTC TCP fallback port
