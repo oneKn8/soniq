@@ -4,13 +4,11 @@
 
 import { Hono } from "hono";
 import type { Context, Next } from "hono";
-import {
-  getTenantByPhoneWithFallback,
-  getTenantById,
-} from "../services/database/tenant-cache.js";
+import { getTenantByPhoneWithFallback } from "../services/database/tenant-cache.js";
 import { buildSystemPrompt } from "../services/gemini/chat.js";
 import { executeTool } from "../services/gemini/tools.js";
 import { insertOne } from "../services/database/query-helpers.js";
+import { queryAll } from "../services/database/client.js";
 import { findOrCreateByPhone } from "../services/contacts/contact-service.js";
 import { runPostCallAutomation } from "../services/automation/post-call.js";
 import type { ToolExecutionContext } from "../types/voice.js";
@@ -59,6 +57,19 @@ internalRoutes.get("/tenants/by-phone/:phone", async (c) => {
     return c.json({ error: "Tenant not found" }, 404);
   }
 
+  // Fetch the tenant's enabled capabilities (drives prompt blocks and agent gating)
+  let capabilities: string[] = [];
+  try {
+    const capRows = await queryAll<{ capability: string }>(
+      `SELECT capability FROM tenant_capabilities
+       WHERE tenant_id = $1 AND is_enabled = true`,
+      [tenant.id],
+    );
+    capabilities = (capRows || []).map((row) => row.capability);
+  } catch (err) {
+    console.warn("[INTERNAL] Failed to load tenant capabilities:", err);
+  }
+
   // Build the system prompt using the existing prompt builder
   // The DB SELECT * returns columns beyond the base Tenant type (location, custom_instructions)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -66,7 +77,6 @@ internalRoutes.get("/tenants/by-phone/:phone", async (c) => {
   const systemPrompt = buildSystemPrompt(
     tenant.agent_name,
     tenant.business_name,
-    tenant.industry,
     tenant.agent_personality,
     {
       operatingHours: t.operating_hours,
@@ -75,6 +85,7 @@ internalRoutes.get("/tenants/by-phone/:phone", async (c) => {
       customInstructions: t.custom_instructions || undefined,
       escalationPhone: tenant.escalation_phone || undefined,
       timezone: tenant.timezone,
+      capabilities,
     },
   );
 
@@ -98,6 +109,7 @@ internalRoutes.get("/tenants/by-phone/:phone", async (c) => {
     voice_pipeline: tenant.voice_pipeline,
     max_call_duration_seconds: t.max_call_duration_seconds ?? 900,
     system_prompt: systemPrompt,
+    capabilities,
   });
 });
 
@@ -225,7 +237,6 @@ internalRoutes.post("/calls/log", async (c) => {
     );
 
     // Run post-call automation (deals, tasks, status updates) - non-blocking
-    const tenant = getTenantById(body.tenant_id);
     runPostCallAutomation({
       tenantId: body.tenant_id,
       callId: record.id,
@@ -235,7 +246,6 @@ internalRoutes.post("/calls/log", async (c) => {
       outcomeType: body.outcome_type || "inquiry",
       durationSeconds: body.duration_seconds,
       status: mapCallStatus(body.status),
-      industry: tenant?.industry || "restaurant",
     }).catch((err) => {
       console.error("[INTERNAL] Post-call automation error:", err);
     });
