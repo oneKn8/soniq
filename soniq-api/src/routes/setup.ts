@@ -6,11 +6,19 @@ import {
 } from "../services/database/client.js";
 import { updateOne } from "../services/database/query-helpers.js";
 import { getAuthUserId } from "../middleware/index.js";
+import { parseJson } from "../lib/validate.js";
 import { invalidateTenant } from "../services/database/tenant-cache.js";
 import type { SetupStep } from "../types/database.js";
 import type { PoolClient } from "pg";
+import { z } from "zod";
 
 export const setupRoutes = new Hono();
+
+// The step payload is polymorphic (fields depend on the step). Validate that a
+// JSON object was sent (reject arrays/invalid JSON) without constraining the
+// per-step shape, so existing request bodies keep working.
+const stepBodySchema = z.record(z.unknown());
+const goBackSchema = z.object({ step: z.string() }).passthrough();
 
 const SETUP_STEPS: SetupStep[] = [
   "business",
@@ -242,7 +250,9 @@ setupRoutes.get("/progress", async (c) => {
  */
 setupRoutes.put("/step/:step", async (c) => {
   const step = c.req.param("step") as SetupStep;
-  const body = await c.req.json();
+  const parsed = await parseJson(c, stepBodySchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data as Record<string, any>;
   const userId = getAuthUserId(c);
 
   // Validate step parameter
@@ -631,7 +641,9 @@ setupRoutes.post("/complete", async (c) => {
  * Navigate to a previous step
  */
 setupRoutes.post("/go-back", async (c) => {
-  const body = await c.req.json();
+  const parsed = await parseJson(c, goBackSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
   const userId = getAuthUserId(c);
 
   const targetStep = body.step as SetupStep;

@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import { queryOne, queryAll } from "../services/database/client.js";
 import {
   insertOne,
@@ -6,8 +7,29 @@ import {
   deleteRows,
 } from "../services/database/query-helpers.js";
 import { getAuthUserId } from "../middleware/index.js";
+import { parseJson } from "../lib/validate.js";
 
 export const promotionsRoutes = new Hono();
+
+const createPromotionSchema = z
+  .object({
+    offer_text: z.string().min(1),
+    mention_behavior: z.string().optional(),
+    is_active: z.boolean().optional(),
+    starts_at: z.string().nullable().optional(),
+    ends_at: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+const updatePromotionSchema = z
+  .object({
+    offer_text: z.string().optional(),
+    mention_behavior: z.string().optional(),
+    is_active: z.boolean().optional(),
+    starts_at: z.string().nullable().optional(),
+    ends_at: z.string().nullable().optional(),
+  })
+  .passthrough();
 
 /** Type definitions for database rows */
 interface MembershipRow {
@@ -86,12 +108,10 @@ promotionsRoutes.get("/", async (c) => {
  * Create a promotion
  */
 promotionsRoutes.post("/", async (c) => {
-  const body = await c.req.json();
+  const parsed = await parseJson(c, createPromotionSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
   const userId = getAuthUserId(c);
-
-  if (!body.offer_text) {
-    return c.json({ error: "offer_text is required" }, 400);
-  }
 
   try {
     // Get tenant
@@ -179,7 +199,9 @@ promotionsRoutes.get("/:id", async (c) => {
  */
 promotionsRoutes.put("/:id", async (c) => {
   const id = c.req.param("id");
-  const body = await c.req.json();
+  const parsed = await parseJson(c, updatePromotionSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
   const userId = getAuthUserId(c);
 
   try {
