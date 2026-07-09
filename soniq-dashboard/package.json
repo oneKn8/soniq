@@ -22,6 +22,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@react-three/fiber": "^9.5.0",
+    "@sentry/react": "^10.64.0",
     "@stripe/stripe-js": "^8.6.4",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.91.1",
