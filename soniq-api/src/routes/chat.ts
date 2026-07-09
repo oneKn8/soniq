@@ -146,7 +146,6 @@ chatRoutes.post("/", async (c) => {
       : buildSystemPrompt(
           tenant.agent_name || "Assistant",
           tenant.business_name,
-          tenant.industry,
           tenant.agent_personality || {
             tone: "friendly",
             verbosity: "balanced",
