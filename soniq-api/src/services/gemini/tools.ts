@@ -229,6 +229,33 @@ function isInvalidValue(value: string | undefined): boolean {
   return invalid.includes(value.toLowerCase().trim());
 }
 
+// Legacy capability strings that are treated as aliases of order_taking
+// (no DB migration; existing tenants may still hold these values).
+const ORDER_TAKING_CAPABILITIES = new Set([
+  "order_taking",
+  "takeaway",
+  "orders",
+]);
+
+// Checks whether the tenant has order/request taking enabled.
+async function tenantHasOrderTaking(tenantId: string): Promise<boolean> {
+  try {
+    const rows = await queryAll<{ capability: string }>(
+      `SELECT capability FROM tenant_capabilities
+       WHERE tenant_id = $1 AND is_enabled = true`,
+      [tenantId],
+    );
+    return (rows || []).some((row) =>
+      ORDER_TAKING_CAPABILITIES.has(row.capability),
+    );
+  } catch (error) {
+    console.error("[TOOLS] Failed to check order_taking capability:", error);
+    return false;
+  }
+}
+
+const VALID_FULFILLMENT_TYPES = ["pickup", "delivery", "onsite", "none"];
+
 export async function executeCreateOrder(
   args: CreateOrderArgs,
   context: ToolExecutionContext,
@@ -237,6 +264,17 @@ export async function executeCreateOrder(
     `[TOOLS] create_order called for tenant ${context.tenantId}:`,
     args,
   );
+
+  // GATING: order/request taking must be enabled for this tenant
+  const orderingEnabled = await tenantHasOrderTaking(context.tenantId);
+  if (!orderingEnabled) {
+    console.log("[TOOLS] Rejected: order_taking capability not enabled");
+    return {
+      success: false,
+      message:
+        "I'm sorry, we're not set up to take orders on this line. Is there anything else I can help with?",
+    };
+  }
 
   // VALIDATION: Reject invalid/placeholder values
   if (isInvalidValue(args.customer_name)) {
@@ -247,23 +285,24 @@ export async function executeCreateOrder(
     };
   }
 
-  if (!args.order_type || !["pickup", "delivery"].includes(args.order_type)) {
-    console.log("[TOOLS] Rejected: missing order type");
+  if (isInvalidValue(args.request_summary)) {
+    console.log("[TOOLS] Rejected: missing request summary");
     return {
       success: false,
-      message: "Is this order for pickup or delivery?",
+      message: "What can I get started for you?",
     };
   }
 
-  if (isInvalidValue(args.items)) {
-    console.log("[TOOLS] Rejected: missing items");
-    return {
-      success: false,
-      message: "What would you like to order?",
-    };
-  }
+  const fulfillmentType =
+    args.fulfillment_type &&
+    VALID_FULFILLMENT_TYPES.includes(args.fulfillment_type)
+      ? args.fulfillment_type
+      : "none";
 
-  if (args.order_type === "delivery" && isInvalidValue(args.delivery_address)) {
+  if (
+    fulfillmentType === "delivery" &&
+    isInvalidValue(args.fulfillment_address)
+  ) {
     console.log("[TOOLS] Rejected: delivery without address");
     return {
       success: false,
@@ -278,9 +317,9 @@ export async function executeCreateOrder(
       : context.callerPhone || "caller";
 
   try {
-    const confirmationCode = `TP-${generateConfirmationCode()}`;
+    const confirmationCode = `OR-${generateConfirmationCode()}`;
 
-    const estimatedMinutes = args.order_type === "pickup" ? 20 : 40;
+    const estimatedMinutes = fulfillmentType === "delivery" ? 40 : 20;
     const readyTime = new Date(Date.now() + estimatedMinutes * 60 * 1000);
     const formattedTime = readyTime.toLocaleTimeString("en-US", {
       hour: "numeric",
@@ -288,12 +327,12 @@ export async function executeCreateOrder(
       hour12: true,
     });
 
-    const notes = [
-      args.items,
-      args.order_type === "delivery" && args.delivery_address
-        ? `DELIVERY TO: ${args.delivery_address}`
-        : "PICKUP ORDER",
-      args.special_instructions ? `NOTES: ${args.special_instructions}` : "",
+    const composedNotes = [
+      args.request_summary,
+      fulfillmentType === "delivery" && args.fulfillment_address
+        ? `DELIVER TO: ${args.fulfillment_address}`
+        : `FULFILLMENT: ${fulfillmentType}`,
+      args.notes && !isInvalidValue(args.notes) ? `NOTES: ${args.notes}` : "",
     ]
       .filter(Boolean)
       .join(". ");
@@ -302,26 +341,29 @@ export async function executeCreateOrder(
       tenant_id: context.tenantId,
       customer_name: args.customer_name,
       customer_phone: customerPhone,
-      booking_type: args.order_type,
+      booking_type: fulfillmentType,
       booking_date: new Date().toISOString().split("T")[0],
       booking_time: new Date().toTimeString().slice(0, 5),
-      notes: notes,
+      notes: composedNotes,
       status: "confirmed",
       confirmation_code: confirmationCode,
       reminder_sent: false,
+      source: "call",
     });
 
-    const orderTypeText =
-      args.order_type === "pickup"
-        ? `ready for pickup in about ${estimatedMinutes} minutes`
-        : `delivered in about ${estimatedMinutes} minutes`;
+    const timingText =
+      fulfillmentType === "delivery"
+        ? `delivered in about ${estimatedMinutes} minutes`
+        : fulfillmentType === "pickup"
+          ? `ready in about ${estimatedMinutes} minutes`
+          : "taken care of shortly";
 
     return {
       success: true,
       order_id: data.id,
       confirmation_code: confirmationCode,
       estimated_time: formattedTime,
-      message: `Your order is confirmed! It will be ${orderTypeText}. Your confirmation number is ${confirmationCode}. Is there anything else I can help you with?`,
+      message: `Your order is confirmed! It will be ${timingText}. Your confirmation number is ${confirmationCode}. Is there anything else I can help you with?`,
     };
   } catch (error) {
     console.error("[TOOLS] create_order error:", error);
