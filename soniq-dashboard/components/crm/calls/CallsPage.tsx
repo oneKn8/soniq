@@ -22,7 +22,7 @@ import { DataTable, Column } from "@/components/crm/shared/DataTable";
 import { Pagination } from "@/components/crm/shared/Pagination";
 import { EmptyCallsState } from "@/components/crm/shared/EmptyState";
 import { useCalls, useCall, type Call } from "@/hooks/useCalls";
-import { useIndustry } from "@/context/IndustryContext";
+import { useTerminology } from "@/lib/terminology";
 import { CallDetail } from "./CallDetail";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils";
 // ============================================================================
 
 function OutcomeBadge({ outcome }: { outcome?: string }) {
-  const { transactionLabel } = useIndustry();
+  const { transactionLabel } = useTerminology();
   const config: Record<
     string,
     { label: string; className: string; icon: React.ElementType }
@@ -248,7 +248,7 @@ const columns: Column<Call>[] = [
 // ============================================================================
 
 export default function CallsPage() {
-  const { transactionLabel } = useIndustry();
+  const { transactionLabel } = useTerminology();
   const [search, setSearch] = React.useState("");
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
   const [outcome, setOutcome] = React.useState<string>("");
