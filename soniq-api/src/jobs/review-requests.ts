@@ -1,6 +1,7 @@
 // Review Request Job
 import { queryAll, queryOne } from "../services/database/client.js";
 import { queueNotification } from "../services/notifications/notification-service.js";
+import { logger } from "../lib/logger.js";
 
 interface BookingWithContact {
   id: string;
@@ -111,10 +112,7 @@ export async function sendReviewRequests(): Promise<void> {
         });
         sentCount++;
       } catch (err) {
-        console.error(
-          `[REVIEW] Failed to send SMS for booking ${booking.id}:`,
-          err,
-        );
+        logger.error({ err }, `[REVIEW] Failed to send SMS for booking ${booking.id}:`);
       }
     }
 
@@ -136,15 +134,12 @@ export async function sendReviewRequests(): Promise<void> {
         });
         sentCount++;
       } catch (err) {
-        console.error(
-          `[REVIEW] Failed to send email for booking ${booking.id}:`,
-          err,
-        );
+        logger.error({ err }, `[REVIEW] Failed to send email for booking ${booking.id}:`);
       }
     }
   }
 
   if (sentCount > 0) {
-    console.log(`[REVIEW] Sent ${sentCount} review requests`);
+    logger.info(`[REVIEW] Sent ${sentCount} review requests`);
   }
 }

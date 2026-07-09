@@ -1,6 +1,7 @@
 // Availability Slot Generator Job
 import { query, queryAll } from "../services/database/client.js";
 import { generateSlotsFromOperatingHours } from "../services/availability/availability-service.js";
+import { logger } from "../lib/logger.js";
 
 interface TenantId {
   id: string;
@@ -41,13 +42,11 @@ export async function generateDailySlots(): Promise<void> {
       );
       totalGenerated += count;
     } catch (err) {
-      console.error(`[SLOTS] Failed for tenant ${tenant.id}:`, err);
+      logger.error({ err }, `[SLOTS] Failed for tenant ${tenant.id}:`);
     }
   }
 
-  console.log(
-    `[SLOTS] Generated ${totalGenerated} slots for ${tenants.length} tenants`,
-  );
+  logger.info(`[SLOTS] Generated ${totalGenerated} slots for ${tenants.length} tenants`);
 }
 
 /**
@@ -68,7 +67,7 @@ export async function cleanupOldSlots(): Promise<void> {
   const count = result.rowCount ?? 0;
 
   if (count > 0) {
-    console.log(`[SLOTS] Cleaned up ${count} old slots`);
+    logger.info(`[SLOTS] Cleaned up ${count} old slots`);
   }
 }
 

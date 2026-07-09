@@ -1,5 +1,6 @@
 import { queryAll } from "../services/database/client.js";
 import { updateOne } from "../services/database/query-helpers.js";
+import { logger } from "../lib/logger.js";
 
 interface CallbackRecord {
   id: string;
@@ -30,7 +31,7 @@ export async function processCallbacks(): Promise<void> {
     return; // No callbacks to process
   }
 
-  console.log(`[CALLBACKS] Processing ${callbacks.length} callbacks`);
+  logger.info(`[CALLBACKS] Processing ${callbacks.length} callbacks`);
 
   for (const callback of callbacks) {
     try {
@@ -46,9 +47,7 @@ export async function processCallbacks(): Promise<void> {
       );
 
       // TODO: Initiate outbound call via SignalWire API
-      console.log(
-        `[CALLBACKS] Would call ${callback.phone_number} for tenant ${callback.tenant_id}`,
-      );
+      logger.info(`[CALLBACKS] Would call ${callback.phone_number} for tenant ${callback.tenant_id}`);
 
       // Mark as completed (in production, this would be after successful call)
       // For now, mark as completed after logging
@@ -62,7 +61,7 @@ export async function processCallbacks(): Promise<void> {
         { id: callback.id },
       );
     } catch (err) {
-      console.error(`[CALLBACKS] Failed for ${callback.id}:`, err);
+      logger.error({ err }, `[CALLBACKS] Failed for ${callback.id}:`);
 
       // Mark as failed if max attempts reached
       if (callback.attempts >= 2) {

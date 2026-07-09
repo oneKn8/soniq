@@ -2,6 +2,7 @@ import { queryAll } from "../services/database/client.js";
 import { updateOne } from "../services/database/query-helpers.js";
 import { sendReminder } from "../services/twilio/sms.js";
 import { sendBookingReminder } from "../services/notifications/notification-service.js";
+import { logger } from "../lib/logger.js";
 
 interface BookingIdOnly {
   id: string;
@@ -66,14 +67,14 @@ export async function processReminders(): Promise<void> {
     return; // No reminders to send
   }
 
-  console.log(`[REMINDERS] Sending ${bookings.length} reminders`);
+  logger.info(`[REMINDERS] Sending ${bookings.length} reminders`);
 
   // Send reminders
   for (const booking of bookings) {
     try {
       await sendReminder(booking.id);
     } catch (err) {
-      console.error(`[REMINDERS] Failed for booking ${booking.id}:`, err);
+      logger.error({ err }, `[REMINDERS] Failed for booking ${booking.id}:`);
     }
   }
 }
@@ -113,9 +114,7 @@ export async function sendDueReminders(): Promise<void> {
   );
 
   if (bookings24h.length > 0) {
-    console.log(
-      `[REMINDERS] Processing ${bookings24h.length} 24-hour reminders`,
-    );
+    logger.info(`[REMINDERS] Processing ${bookings24h.length} 24-hour reminders`);
 
     for (const booking of bookings24h) {
       try {
@@ -149,7 +148,7 @@ export async function sendDueReminders(): Promise<void> {
           { id: booking.id },
         );
       } catch (err) {
-        console.error(`[REMINDERS] 24h failed for ${booking.id}:`, err);
+        logger.error({ err }, `[REMINDERS] 24h failed for ${booking.id}:`);
       }
     }
   }
@@ -220,7 +219,7 @@ export async function sendDueReminders(): Promise<void> {
           );
         }
       } catch (err) {
-        console.error(`[REMINDERS] 1h failed for ${booking.id}:`, err);
+        logger.error({ err }, `[REMINDERS] 1h failed for ${booking.id}:`);
       }
     }
   }
