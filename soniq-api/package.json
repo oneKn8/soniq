@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@azure/identity": "^4.13.0",
-    "@deepgram/sdk": "^4.11.3",
     "@google/generative-ai": "^0.24.1",
     "@hono/node-server": "^1.13.7",
     "@microsoft/microsoft-graph-client": "^3.0.7",
