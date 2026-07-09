@@ -2,7 +2,7 @@ import "dotenv/config";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { logger } from "hono/logger";
+import { logger as httpLogger } from "hono/logger";
 import { timing } from "hono/timing";
 
 import { healthRoutes } from "./routes/health.js";
@@ -39,11 +39,16 @@ import {
   rateLimit,
   verifyTelephonyWebhook,
 } from "./middleware/index.js";
+import { logger } from "./lib/logger.js";
+import {
+  initErrorReporting,
+  captureException,
+} from "./lib/error-reporting.js";
 
 const app = new Hono();
 
 // Middleware
-app.use("*", logger());
+app.use("*", httpLogger());
 app.use("*", timing());
 app.use(
   "*",
@@ -148,7 +153,9 @@ app.notFound((c) => {
 
 // Error handler
 app.onError((err, c) => {
-  console.error("[ERROR]", err);
+  logger.error({ err }, "[ERROR]");
+  // No-op unless a Sentry/GlitchTip DSN is configured.
+  captureException(err, { path: c.req.path, method: c.req.method });
   return c.json(
     {
       error: "Internal server error",
@@ -162,7 +169,11 @@ app.onError((err, c) => {
 const port = parseInt(process.env.PORT || "3001", 10);
 
 async function start() {
-  console.log("[STARTUP] Initializing Soniq API...");
+  logger.info("[STARTUP] Initializing Soniq API...");
+
+  // Initialize error reporting first so startup failures are captured.
+  // No-op when neither SENTRY_DSN nor GLITCHTIP_DSN is set.
+  initErrorReporting();
 
   const isProduction = process.env.NODE_ENV === "production";
 
@@ -177,9 +188,7 @@ async function start() {
 
   const missingRequired = requiredEnv.filter((key) => !process.env[key]);
   if (missingRequired.length > 0) {
-    console.error(
-      `[STARTUP] FATAL: Missing required env vars: ${missingRequired.join(", ")}`,
-    );
+    logger.error(`[STARTUP] FATAL: Missing required env vars: ${missingRequired.join(", ")}`);
     process.exit(1);
   }
 
@@ -191,36 +200,30 @@ async function start() {
     !process.env.SIGNALWIRE_SIGNING_KEY &&
     !process.env.SIGNALWIRE_WEBHOOK_SECRET
   ) {
-    console.error(
-      "[STARTUP] FATAL: production requires SIGNALWIRE_SIGNING_KEY (or SIGNALWIRE_WEBHOOK_SECRET) for webhook signature verification",
-    );
+    logger.error("[STARTUP] FATAL: production requires SIGNALWIRE_SIGNING_KEY (or SIGNALWIRE_WEBHOOK_SECRET) for webhook signature verification");
     process.exit(1);
   }
 
   const missingRecommended = recommendedEnv.filter((key) => !process.env[key]);
   if (missingRecommended.length > 0) {
-    console.warn(
-      `[STARTUP] WARNING: Missing recommended env vars: ${missingRecommended.join(", ")}`,
-    );
+    logger.warn(`[STARTUP] WARNING: Missing recommended env vars: ${missingRecommended.join(", ")}`);
   }
 
   if (!isProduction) {
-    console.warn(
-      `[STARTUP] WARNING: NODE_ENV is "${process.env.NODE_ENV || "undefined"}" - set to "production" for production deploys`,
-    );
+    logger.warn(`[STARTUP] WARNING: NODE_ENV is "${process.env.NODE_ENV || "undefined"}" - set to "production" for production deploys`);
   }
 
   // Initialize database connection pool
   initDatabase();
-  console.log("[STARTUP] Database pool initialized");
+  logger.info("[STARTUP] Database pool initialized");
 
   // Initialize tenant cache for low-latency webhook responses
   await initTenantCache();
-  console.log("[STARTUP] Tenant cache initialized");
+  logger.info("[STARTUP] Tenant cache initialized");
 
   // Start background job scheduler
   startScheduler();
-  console.log("[STARTUP] Job scheduler started");
+  logger.info("[STARTUP] Job scheduler started");
 
   // Start HTTP server
   serve(
@@ -229,18 +232,16 @@ async function start() {
       port,
     },
     (info) => {
-      console.log(`[STARTUP] Server running on http://localhost:${info.port}`);
-      console.log(
-        "[STARTUP] Voice stack: LiveKit Agents (Deepgram + OpenAI + Cartesia)",
-      );
+      logger.info(`[STARTUP] Server running on http://localhost:${info.port}`);
+      logger.info("[STARTUP] Voice stack: LiveKit Agents (Deepgram + OpenAI + Cartesia)");
     },
   );
 
   // Graceful shutdown handlers
   const shutdown = async (signal: string) => {
-    console.log(`[SHUTDOWN] Received ${signal}, closing connections...`);
+    logger.info(`[SHUTDOWN] Received ${signal}, closing connections...`);
     await closePool();
-    console.log("[SHUTDOWN] Database pool closed");
+    logger.info("[SHUTDOWN] Database pool closed");
     process.exit(0);
   };
 
@@ -249,7 +250,8 @@ async function start() {
 }
 
 start().catch((err) => {
-  console.error("[FATAL] Failed to start server:", err);
+  logger.error({ err }, "[FATAL] Failed to start server:");
+  captureException(err, { phase: "startup" });
   process.exit(1);
 });
 
