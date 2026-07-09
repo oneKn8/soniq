@@ -49,11 +49,12 @@ const updateStatusSchema = z.object({
  * Update voicemail status
  */
 voicemailRoutes.patch("/:id/status", async (c) => {
+  const tenantId = getAuthTenantId(c);
   const id = c.req.param("id");
   const parsed = await parseJson(c, updateStatusSchema);
   if (!parsed.success) return parsed.response;
 
-  const success = await updateVoicemailStatus(id, parsed.data.status);
+  const success = await updateVoicemailStatus(id, parsed.data.status, tenantId);
 
   if (!success) {
     return c.json({ error: "Failed to update status" }, 500);
