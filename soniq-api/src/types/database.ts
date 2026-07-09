@@ -9,7 +9,7 @@ export interface Tenant {
   business_name: string;
   industry: string;
   phone_number: string; // SignalWire phone number assigned to this tenant
-  vapi_phone_number_id?: string; // Vapi phone number ID for direct webhook lookup
+  vapi_phone_number_id?: string; // Provider phone number ID for direct webhook lookup (DB column name retained)
 
   // Agent configuration
   agent_name: string;

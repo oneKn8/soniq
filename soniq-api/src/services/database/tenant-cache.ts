@@ -13,7 +13,7 @@ import type { Tenant } from "../../types/database.js";
 
 // Cache storage
 const tenantCache = new Map<string, Tenant>();
-const vapiPhoneIdCache = new Map<string, Tenant>(); // Key by vapi_phone_number_id
+const providerPhoneIdCache = new Map<string, Tenant>(); // Key by provider phone number ID
 let cacheInitialized = false;
 let lastRefresh: Date | null = null;
 
@@ -52,7 +52,7 @@ async function refreshCache(): Promise<void> {
 
   // Clear and rebuild cache
   tenantCache.clear();
-  vapiPhoneIdCache.clear();
+  providerPhoneIdCache.clear();
 
   for (const tenant of tenants) {
     // Key by phone number for fast lookup during incoming calls
@@ -61,9 +61,9 @@ async function refreshCache(): Promise<void> {
     }
     // Also key by tenant ID for other lookups
     tenantCache.set(`id:${tenant.id}`, tenant);
-    // Key by Vapi phone number ID for direct webhook lookup
+    // Key by provider phone number ID for direct webhook lookup
     if (tenant.vapi_phone_number_id) {
-      vapiPhoneIdCache.set(tenant.vapi_phone_number_id, tenant);
+      providerPhoneIdCache.set(tenant.vapi_phone_number_id, tenant);
     }
   }
 
@@ -90,13 +90,13 @@ export function getTenantById(tenantId: string): Tenant | null {
 }
 
 /**
- * Get tenant by Vapi phone number ID (for webhook lookup)
- * FAST: O(1) from cache, no DB query or Vapi API call
+ * Get tenant by provider phone number ID (for webhook lookup)
+ * FAST: O(1) from cache, no DB query or provider API call
  */
-export function getTenantByVapiPhoneId(
-  vapiPhoneNumberId: string,
+export function getTenantByProviderPhoneId(
+  providerPhoneNumberId: string,
 ): Tenant | null {
-  return vapiPhoneIdCache.get(vapiPhoneNumberId) || null;
+  return providerPhoneIdCache.get(providerPhoneNumberId) || null;
 }
 
 /**
