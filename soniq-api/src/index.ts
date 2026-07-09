@@ -14,7 +14,10 @@ import { contactsRoutes } from "./routes/contacts.js";
 import { availabilityRoutes } from "./routes/availability.js";
 import { notificationsRoutes } from "./routes/notifications.js";
 import { resourcesRoutes } from "./routes/resources.js";
-import { voicemailRoutes } from "./routes/voicemails.js";
+import {
+  voicemailRoutes,
+  voicemailWebhookRoutes,
+} from "./routes/voicemails.js";
 import trainingDataRoutes from "./routes/training-data.js";
 import { chatRoutes } from "./routes/chat.js";
 import { setupRoutes } from "./routes/setup.js";
@@ -34,6 +37,7 @@ import {
   authMiddleware,
   userAuthMiddleware,
   rateLimit,
+  verifyTelephonyWebhook,
 } from "./middleware/index.js";
 
 const app = new Hono();
@@ -76,8 +80,9 @@ app.use(
 app.use("*", rateLimit({ windowMs: 60000, max: 100 }));
 
 // SIP forwarding endpoint - SignalWire calls this to route calls to LiveKit SIP bridge
-// Must be public (no auth) since SignalWire calls it directly
-app.post("/sip/forward", (c) => {
+// Public (no JWT) since SignalWire calls it directly, but signature-verified so
+// only the telephony provider can trigger call routing.
+app.post("/sip/forward", verifyTelephonyWebhook(), (c) => {
   const livekitSipHost = process.env.LIVEKIT_SIP_HOST || "178.156.205.145";
   const livekitSipPort = process.env.LIVEKIT_SIP_PORT || "5060";
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -93,6 +98,9 @@ app.post("/sip/forward", (c) => {
 app.route("/health", healthRoutes);
 app.route("/api/chat", chatRoutes); // Chat widget is public
 app.route("/internal", internalRoutes); // LiveKit agent API (own auth via INTERNAL_API_KEY)
+// SignalWire voicemail webhooks: public path (not under /api/* JWT), each
+// endpoint signature-verified inside the router so the provider can reach them.
+app.route("/webhooks/voicemail", voicemailWebhookRoutes);
 
 // User-only auth (no tenant required) for setup and tenant listing
 app.use("/api/setup/*", userAuthMiddleware());
@@ -158,10 +166,12 @@ async function start() {
 
   const isProduction = process.env.NODE_ENV === "production";
 
-  // Validate critical environment variables at startup
-  const requiredEnv = ["DATABASE_URL"];
+  // Validate critical environment variables at startup.
+  // ENCRYPTION_KEY is required in ALL environments so encrypt/decrypt fail
+  // closed and never silently persist plaintext.
+  const requiredEnv = ["DATABASE_URL", "ENCRYPTION_KEY"];
   if (isProduction) {
-    requiredEnv.push("FRONTEND_URL", "BACKEND_URL", "ENCRYPTION_KEY");
+    requiredEnv.push("FRONTEND_URL", "BACKEND_URL");
   }
   const recommendedEnv = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"];
 
@@ -169,6 +179,20 @@ async function start() {
   if (missingRequired.length > 0) {
     console.error(
       `[STARTUP] FATAL: Missing required env vars: ${missingRequired.join(", ")}`,
+    );
+    process.exit(1);
+  }
+
+  // Inbound telephony webhooks are signature-verified. In production a signing
+  // secret MUST be present, otherwise every SignalWire webhook fails closed
+  // (breaking calls) - fail fast at boot rather than ship broken telephony.
+  if (
+    isProduction &&
+    !process.env.SIGNALWIRE_SIGNING_KEY &&
+    !process.env.SIGNALWIRE_WEBHOOK_SECRET
+  ) {
+    console.error(
+      "[STARTUP] FATAL: production requires SIGNALWIRE_SIGNING_KEY (or SIGNALWIRE_WEBHOOK_SECRET) for webhook signature verification",
     );
     process.exit(1);
   }
