@@ -28,12 +28,7 @@ import {
   ADMIN_PERMISSIONS,
   DEVELOPER_PERMISSIONS,
 } from "@/types";
-import {
-  createDefaultConfig,
-  getPreset,
-  getTerminology,
-  INDUSTRY_PRESETS,
-} from "@/lib/industryPresets";
+import { createDefaultConfig } from "@/lib/terminology";
 import {
   generateDashboardMetrics,
   generateInitialLogs,
@@ -75,11 +70,6 @@ interface ConfigContextType {
   ) => void;
   resetConfig: () => void;
   switchIndustry: (industry: IndustryType) => void;
-
-  // Industry Helpers
-  getPreset: typeof getPreset;
-  getTerminology: typeof getTerminology;
-  industryPresets: typeof INDUSTRY_PRESETS;
 
   // UI State
   uiState: UIState;
@@ -173,9 +163,9 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         } else {
           // Initialize demo config when none exists
           activeConfig = {
-            ...createDefaultConfig("hotel", "developer"),
+            ...createDefaultConfig("developer"),
             isConfigured: true,
-            businessName: "Demo Hotel",
+            businessName: "Demo Business",
             agentName: "Soniq",
             configuredAt: new Date().toISOString(),
           };
@@ -192,13 +182,13 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
             setMetrics(apiMetrics);
           } catch (err) {
             console.warn("[ConfigContext] API fetch failed, using mock:", err);
-            setMetrics(generateDashboardMetrics(activeConfig.industry));
+            setMetrics(generateDashboardMetrics());
           }
         } else {
-          setMetrics(generateDashboardMetrics(activeConfig.industry));
+          setMetrics(generateDashboardMetrics());
         }
 
-        setIndustryMetrics(generateIndustryMetrics(activeConfig.industry));
+        setIndustryMetrics(generateIndustryMetrics());
 
         // Load UI state
         const savedUI = localStorage.getItem(STORAGE_KEYS.ui);
@@ -298,14 +288,14 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
           } catch (err) {
             console.warn("[ConfigContext] Failed to fetch metrics:", err);
             // Fall back to mock on error
-            setMetrics(generateDashboardMetrics(config.industry));
+            setMetrics(generateDashboardMetrics());
           }
         } else {
           // Use mock data
-          setMetrics(generateDashboardMetrics(config.industry));
+          setMetrics(generateDashboardMetrics());
         }
         // Industry metrics are always mock for now (industry-specific)
-        setIndustryMetrics(generateIndustryMetrics(config.industry));
+        setIndustryMetrics(generateIndustryMetrics());
       },
       apiEnabled ? 10000 : 30000,
     ); // Poll every 10s for API, 30s for mock
@@ -321,8 +311,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     setConfig((prev) => {
       if (!prev) {
         // Creating new config
-        const industry = (newConfig.industry || "hotel") as IndustryType;
-        const base = createDefaultConfig(industry);
+        const base = createDefaultConfig();
         const merged = {
           ...base,
           ...newConfig,
@@ -331,8 +320,8 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
           lastModified: new Date().toISOString(),
         };
         // Initialize metrics
-        setMetrics(generateDashboardMetrics(merged.industry));
-        setIndustryMetrics(generateIndustryMetrics(merged.industry));
+        setMetrics(generateDashboardMetrics());
+        setIndustryMetrics(generateIndustryMetrics());
         return merged;
       }
       // Updating existing config
@@ -369,7 +358,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
 
   const switchIndustry = useCallback((industry: IndustryType) => {
     setConfig((prev) => {
-      const base = createDefaultConfig(industry);
+      const base = createDefaultConfig();
       if (!prev) return base;
       return {
         ...prev,
@@ -379,8 +368,8 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         lastModified: new Date().toISOString(),
       };
     });
-    setMetrics(generateDashboardMetrics(industry));
-    setIndustryMetrics(generateIndustryMetrics(industry));
+    setMetrics(generateDashboardMetrics());
+    setIndustryMetrics(generateIndustryMetrics());
   }, []);
 
   // ============================================================================
@@ -431,12 +420,12 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         setMetrics(apiMetrics);
       } catch (err) {
         console.warn("[ConfigContext] Failed to refresh metrics:", err);
-        setMetrics(generateDashboardMetrics(config.industry));
+        setMetrics(generateDashboardMetrics());
       }
     } else {
-      setMetrics(generateDashboardMetrics(config.industry));
+      setMetrics(generateDashboardMetrics());
     }
-    setIndustryMetrics(generateIndustryMetrics(config.industry));
+    setIndustryMetrics(generateIndustryMetrics());
   }, [config, apiEnabled]);
 
   // ============================================================================
@@ -446,7 +435,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const simulateCall = useCallback(() => {
     if (!config) return;
 
-    const call = generateCallSession(config.industry);
+    const call = generateCallSession();
     setActiveCalls((prev) => [...prev, call]);
 
     addLog({
@@ -587,11 +576,6 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
       updateConfig,
       resetConfig,
       switchIndustry,
-
-      // Industry Helpers
-      getPreset,
-      getTerminology,
-      industryPresets: INDUSTRY_PRESETS,
 
       // UI State
       uiState,
