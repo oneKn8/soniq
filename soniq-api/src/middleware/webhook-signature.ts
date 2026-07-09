@@ -22,6 +22,7 @@
 
 import type { Context, Next } from "hono";
 import twilio from "twilio";
+import { logger } from "../lib/logger.js";
 
 function resolveSigningKey(): string | undefined {
   return (
@@ -51,9 +52,7 @@ export function verifyTelephonyWebhook() {
         // Fail closed: never accept unverified telephony webhooks in production.
         return c.json({ error: "Webhook verification not configured" }, 401);
       }
-      console.warn(
-        "[WEBHOOK] No signing secret set - skipping signature verification (non-production only)",
-      );
+      logger.warn("[WEBHOOK] No signing secret set - skipping signature verification (non-production only)");
       return next();
     }
 
@@ -83,10 +82,10 @@ export function verifyTelephonyWebhook() {
       : false;
 
     if (!ok) {
-      console.warn("[WEBHOOK] Rejected request with invalid/missing signature", {
+      logger.warn({
         path: new URL(c.req.url).pathname,
         hasHeader: Boolean(header),
-      });
+      }, "[WEBHOOK] Rejected request with invalid/missing signature");
       return c.json({ error: "Invalid webhook signature" }, 401);
     }
 
