@@ -338,11 +338,11 @@ export interface EndCallResult {
 
 export interface CreateOrderArgs {
   customer_name: string;
-  customer_phone: string;
-  order_type: "pickup" | "delivery";
-  items: string;
-  delivery_address?: string;
-  special_instructions?: string;
+  request_summary: string;
+  customer_phone?: string;
+  fulfillment_type?: "pickup" | "delivery" | "onsite" | "none";
+  fulfillment_address?: string;
+  notes?: string;
 }
 
 export interface CreateOrderResult {
