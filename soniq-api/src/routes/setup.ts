@@ -43,7 +43,6 @@ function getNextStep(currentStep: SetupStep): SetupStep | null {
 interface TenantRow {
   id: string;
   business_name: string | null;
-  industry: string | null;
   location_city: string | null;
   location_address: string | null;
   agent_name: string | null;
@@ -139,7 +138,7 @@ setupRoutes.get("/progress", async (c) => {
     // Get tenant data
     const tenantSql = `
       SELECT
-        id, business_name, industry, location_city, location_address,
+        id, business_name, location_city, location_address,
         agent_name, agent_personality, voice_config,
         greeting_standard, greeting_after_hours, greeting_returning,
         timezone, operating_hours, escalation_enabled, escalation_phone,
@@ -208,7 +207,6 @@ setupRoutes.get("/progress", async (c) => {
       data: {
         // Business step
         business_name: tenant.business_name,
-        industry: tenant.industry,
         location_city: tenant.location_city,
         location_address: tenant.location_address,
         // Capabilities step
@@ -291,7 +289,6 @@ setupRoutes.put("/step/:step", async (c) => {
           "tenants",
           {
             business_name: body.business_name,
-            industry: body.industry ?? "general",
             location_city: body.location_city || null,
             location_address: body.location_address || null,
             setup_step: getNextStep(step) || step,
@@ -304,12 +301,11 @@ setupRoutes.put("/step/:step", async (c) => {
         const result = await transaction(async (client: PoolClient) => {
           // Create tenant
           const tenantResult = await client.query<TenantRow>(
-            `INSERT INTO tenants (business_name, industry, location_city, location_address, phone_number, setup_step, status)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `INSERT INTO tenants (business_name, location_city, location_address, phone_number, setup_step, status)
+             VALUES ($1, $2, $3, $4, $5, $6)
              RETURNING id`,
             [
               body.business_name,
-              body.industry ?? "general",
               body.location_city || null,
               body.location_address || null,
               `pending_${Date.now()}`,
