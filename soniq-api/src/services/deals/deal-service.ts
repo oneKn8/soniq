@@ -13,10 +13,7 @@ import {
   PaginationParams,
   PaginatedResult,
 } from "../../types/crm.js";
-import {
-  getStagesForIndustry,
-  getPipelineConfig,
-} from "../../config/industry-pipeline.js";
+import { getStages, getPipelineConfig } from "../../config/universal-pipeline.js";
 
 // Allowed columns for ORDER BY (prevents SQL injection via sort_by param)
 const ALLOWED_SORT_COLUMNS = new Set([
@@ -136,14 +133,13 @@ export async function searchDeals(
 /**
  * Get pipeline view grouped by stage.
  * Returns counts, totals, and deals array per stage, ordered by sort_index.
- * Stages are determined by the tenant's industry. Deals with unrecognized
- * stages are collected into a trailing "other" bucket.
+ * Stages come from the universal pipeline. Deals with unrecognized stages
+ * are collected into a trailing "other" bucket.
  */
 export async function getPipeline(
   tenantId: string,
-  industry: string,
 ): Promise<PipelineStage[]> {
-  const stageConfigs = getStagesForIndustry(industry);
+  const stageConfigs = getStages();
   const knownStageIds = new Set(stageConfigs.map((s) => s.id));
 
   // Get aggregate counts per stage
@@ -189,7 +185,7 @@ export async function getPipeline(
     dealsByStage.set(deal.stage, existing);
   }
 
-  // Build result with industry-specific stages (even empty ones)
+  // Build result with the universal stages (even empty ones)
   const result: PipelineStage[] = stageConfigs.map((sc) => ({
     stage: sc.id,
     count: countMap.get(sc.id)?.count || 0,
@@ -197,7 +193,7 @@ export async function getPipeline(
     deals: dealsByStage.get(sc.id) || [],
   }));
 
-  // Collect deals whose stage doesn't match this industry's stages into "other"
+  // Collect deals whose stage doesn't match the universal stages into "other"
   let otherCount = 0;
   let otherAmount = 0;
   const otherDeals: Deal[] = [];
@@ -244,14 +240,13 @@ export async function getDeal(
 
 /**
  * Create a new deal.
- * When no stage is specified, defaults to the industry's default stage.
+ * When no stage is specified, defaults to the universal default stage.
  */
 export async function createDeal(
   tenantId: string,
   input: CreateDealInput,
-  industry: string = "default",
 ): Promise<Deal> {
-  const defaultStage = getPipelineConfig(industry).defaultStage;
+  const defaultStage = getPipelineConfig().defaultStage;
   const data: Record<string, unknown> = {
     tenant_id: tenantId,
     name: input.name,

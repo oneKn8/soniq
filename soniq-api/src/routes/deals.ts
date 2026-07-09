@@ -14,8 +14,7 @@ import {
 } from "../services/deals/deal-service.js";
 import { DealFilters, PaginationParams } from "../types/crm.js";
 import { getAuthTenantId } from "../middleware/index.js";
-import { getTenantById } from "../services/database/tenant-cache.js";
-import { getStagesForIndustry } from "../config/industry-pipeline.js";
+import { getStages } from "../config/universal-pipeline.js";
 
 export const dealsRoutes = new Hono();
 
@@ -51,12 +50,6 @@ const updateStageSchema = z.object({
 // Helper to get tenant ID from auth context
 function getTenantId(c: Parameters<typeof getAuthTenantId>[0]): string {
   return getAuthTenantId(c);
-}
-
-// Helper to resolve tenant industry (defaults to "default" if tenant not cached)
-function getTenantIndustry(tenantId: string): string {
-  const tenant = getTenantById(tenantId);
-  return tenant?.industry || "default";
 }
 
 // ============================================================================
@@ -122,9 +115,8 @@ dealsRoutes.get("/", async (c) => {
 dealsRoutes.get("/pipeline", async (c) => {
   try {
     const tenantId = getTenantId(c);
-    const industry = getTenantIndustry(tenantId);
 
-    const pipeline = await getPipeline(tenantId, industry);
+    const pipeline = await getPipeline(tenantId);
 
     return c.json({ stages: pipeline });
   } catch (error) {
@@ -168,7 +160,6 @@ dealsRoutes.get("/:id", async (c) => {
 dealsRoutes.post("/", async (c) => {
   try {
     const tenantId = getTenantId(c);
-    const industry = getTenantIndustry(tenantId);
     const body = await c.req.json();
 
     const parsed = createDealSchema.safeParse(body);
@@ -182,22 +173,18 @@ dealsRoutes.post("/", async (c) => {
       );
     }
 
-    const deal = await createDeal(
-      tenantId,
-      {
-        name: parsed.data.name,
-        description: parsed.data.description ?? undefined,
-        company: parsed.data.company ?? undefined,
-        stage: parsed.data.stage,
-        amount_cents: parsed.data.amount_cents,
-        expected_close: parsed.data.expected_close ?? undefined,
-        contact_id: parsed.data.contact_id ?? undefined,
-        call_id: parsed.data.call_id ?? undefined,
-        source: parsed.data.source,
-        created_by: parsed.data.created_by ?? undefined,
-      },
-      industry,
-    );
+    const deal = await createDeal(tenantId, {
+      name: parsed.data.name,
+      description: parsed.data.description ?? undefined,
+      company: parsed.data.company ?? undefined,
+      stage: parsed.data.stage,
+      amount_cents: parsed.data.amount_cents,
+      expected_close: parsed.data.expected_close ?? undefined,
+      contact_id: parsed.data.contact_id ?? undefined,
+      call_id: parsed.data.call_id ?? undefined,
+      source: parsed.data.source,
+      created_by: parsed.data.created_by ?? undefined,
+    });
 
     return c.json(deal, 201);
   } catch (error) {
@@ -256,7 +243,6 @@ dealsRoutes.put("/:id", async (c) => {
 dealsRoutes.patch("/:id/stage", async (c) => {
   try {
     const tenantId = getTenantId(c);
-    const industry = getTenantIndustry(tenantId);
     const id = c.req.param("id");
     const body = await c.req.json();
 
@@ -271,14 +257,12 @@ dealsRoutes.patch("/:id/stage", async (c) => {
       );
     }
 
-    // Validate stage exists in the tenant's industry pipeline
-    const validStages = new Set(
-      getStagesForIndustry(industry).map((s) => s.id),
-    );
+    // Validate stage exists in the universal pipeline
+    const validStages = new Set(getStages().map((s) => s.id));
     if (!validStages.has(parsed.data.stage)) {
       return c.json(
         {
-          error: `Invalid stage "${parsed.data.stage}" for industry "${industry}". Valid stages: ${[...validStages].join(", ")}`,
+          error: `Invalid stage "${parsed.data.stage}". Valid stages: ${[...validStages].join(", ")}`,
         },
         400,
       );
