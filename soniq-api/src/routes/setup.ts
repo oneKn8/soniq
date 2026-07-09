@@ -267,12 +267,10 @@ setupRoutes.put("/step/:step", async (c) => {
     ]);
 
     if (step === "business") {
-      // Validate required business fields
-      if (!body.business_name || !body.industry) {
-        return c.json(
-          { error: "business_name and industry are required" },
-          400,
-        );
+      // Validate required business fields (industry is no longer required;
+      // the column is kept null-safe and defaults to the neutral "general")
+      if (!body.business_name) {
+        return c.json({ error: "business_name is required" }, 400);
       }
 
       if (membership) {
@@ -282,7 +280,7 @@ setupRoutes.put("/step/:step", async (c) => {
           "tenants",
           {
             business_name: body.business_name,
-            industry: body.industry,
+            industry: body.industry ?? "general",
             location_city: body.location_city || null,
             location_address: body.location_address || null,
             setup_step: getNextStep(step) || step,
@@ -300,7 +298,7 @@ setupRoutes.put("/step/:step", async (c) => {
              RETURNING id`,
             [
               body.business_name,
-              body.industry,
+              body.industry ?? "general",
               body.location_city || null,
               body.location_address || null,
               `pending_${Date.now()}`,
@@ -582,8 +580,8 @@ setupRoutes.post("/complete", async (c) => {
       return c.json({ error: "Tenant not found" }, 404);
     }
 
-    // Verify required data is present
-    if (!tenant.business_name || !tenant.industry) {
+    // Verify required data is present (industry is no longer required)
+    if (!tenant.business_name) {
       return c.json({ error: "Business information incomplete" }, 400);
     }
 
