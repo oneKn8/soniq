@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { queryOne, queryAll } from "../services/database/client.js";
+import { tenantQueryOne, tenantQueryAll } from "../services/database/client.js";
 import { getAuthTenantId } from "../middleware/index.js";
 import { logger } from "../lib/logger.js";
 
@@ -69,7 +69,8 @@ dashboardRoutes.get("/metrics", async (c) => {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     // Today's calls count
-    const callsResult = await queryOne<{ count: string }>(
+    const callsResult = await tenantQueryOne<{ count: string }>(
+      tenantId,
       `SELECT COUNT(*) as count FROM calls
        WHERE tenant_id = $1
        AND created_at >= $2
@@ -79,7 +80,8 @@ dashboardRoutes.get("/metrics", async (c) => {
     const callsToday = parseInt(callsResult?.count || "0", 10);
 
     // Today's bookings count
-    const bookingsResult = await queryOne<{ count: string }>(
+    const bookingsResult = await tenantQueryOne<{ count: string }>(
+      tenantId,
       `SELECT COUNT(*) as count FROM bookings
        WHERE tenant_id = $1
        AND booking_date = $2`,
@@ -88,9 +90,10 @@ dashboardRoutes.get("/metrics", async (c) => {
     const bookingsToday = parseInt(bookingsResult?.count || "0", 10);
 
     // Average response latency (from recent calls)
-    const latencyData = await queryAll<{
+    const latencyData = await tenantQueryAll<{
       metadata: Record<string, number> | null;
     }>(
+      tenantId,
       `SELECT metadata FROM calls
        WHERE tenant_id = $1
        AND metadata IS NOT NULL
@@ -197,27 +200,33 @@ dashboardRoutes.get("/stats", async (c) => {
       bookingsWeekResult,
       bookingsMonthResult,
     ] = await Promise.all([
-      queryOne<{ count: string }>(
+      tenantQueryOne<{ count: string }>(
+        tenantId,
         `SELECT COUNT(*) as count FROM calls WHERE tenant_id = $1 AND created_at >= $2`,
         [tenantId, today.toISOString()],
       ),
-      queryOne<{ count: string }>(
+      tenantQueryOne<{ count: string }>(
+        tenantId,
         `SELECT COUNT(*) as count FROM calls WHERE tenant_id = $1 AND created_at >= $2`,
         [tenantId, weekStart.toISOString()],
       ),
-      queryOne<{ count: string }>(
+      tenantQueryOne<{ count: string }>(
+        tenantId,
         `SELECT COUNT(*) as count FROM calls WHERE tenant_id = $1 AND created_at >= $2`,
         [tenantId, monthStart.toISOString()],
       ),
-      queryOne<{ count: string }>(
+      tenantQueryOne<{ count: string }>(
+        tenantId,
         `SELECT COUNT(*) as count FROM bookings WHERE tenant_id = $1 AND created_at >= $2`,
         [tenantId, today.toISOString()],
       ),
-      queryOne<{ count: string }>(
+      tenantQueryOne<{ count: string }>(
+        tenantId,
         `SELECT COUNT(*) as count FROM bookings WHERE tenant_id = $1 AND created_at >= $2`,
         [tenantId, weekStart.toISOString()],
       ),
-      queryOne<{ count: string }>(
+      tenantQueryOne<{ count: string }>(
+        tenantId,
         `SELECT COUNT(*) as count FROM bookings WHERE tenant_id = $1 AND created_at >= $2`,
         [tenantId, monthStart.toISOString()],
       ),

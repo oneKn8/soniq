@@ -1,6 +1,10 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { queryOne, queryAll, queryCount } from "../services/database/client.js";
+import {
+  tenantQueryOne,
+  tenantQueryAll,
+  tenantQueryCount,
+} from "../services/database/client.js";
 import { updateOne } from "../services/database/query-helpers.js";
 import { parseJson } from "../lib/validate.js";
 
@@ -125,14 +129,16 @@ app.get("/:tenantId", async (c) => {
     const offsetNum = parseInt(offset);
 
     // Get total count
-    const countResult = await queryOne<{ count: string }>(
+    const countResult = await tenantQueryOne<{ count: string }>(
+      tenantId,
       `SELECT COUNT(*) as count FROM conversation_logs ${whereClause}`,
       params,
     );
     const total = parseInt(countResult?.count || "0", 10);
 
     // Get data with pagination
-    const data = await queryAll<ConversationLog>(
+    const data = await tenantQueryAll<ConversationLog>(
+      tenantId,
       `SELECT * FROM conversation_logs ${whereClause}
        ORDER BY created_at DESC
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
@@ -159,7 +165,8 @@ app.get("/:tenantId/:id", async (c) => {
     const tenantId = c.req.param("tenantId");
     const id = c.req.param("id");
 
-    const data = await queryOne<ConversationLog>(
+    const data = await tenantQueryOne<ConversationLog>(
+      tenantId,
       `SELECT * FROM conversation_logs WHERE tenant_id = $1 AND id = $2`,
       [tenantId, id],
     );
@@ -209,6 +216,8 @@ app.patch("/:tenantId/:id", async (c) => {
       "conversation_logs",
       updateData,
       { tenant_id: tenantId, id },
+      "*",
+      tenantId,
     );
 
     if (!data) {
@@ -261,7 +270,7 @@ app.post("/:tenantId/bulk-review", async (c) => {
                  WHERE tenant_id = $${paramIndex++}
                  AND id = ANY($${paramIndex})`;
 
-    const updated = await queryCount(sql, params);
+    const updated = await tenantQueryCount(tenantId, sql, params);
 
     return c.json({ updated });
   } catch (error) {
@@ -308,7 +317,8 @@ app.get("/:tenantId/export/:format", async (c) => {
 
     const whereClause = `WHERE ${conditions.join(" AND ")}`;
 
-    const data = await queryAll<ConversationLog>(
+    const data = await tenantQueryAll<ConversationLog>(
+      tenantId,
       `SELECT * FROM conversation_logs ${whereClause}
        ORDER BY quality_score DESC
        LIMIT $${paramIndex}`,
@@ -323,7 +333,8 @@ app.get("/:tenantId/export/:format", async (c) => {
 
     // Mark as exported
     const ids = conversations.map((d: ConversationLog) => d.id);
-    await queryCount(
+    await tenantQueryCount(
+      tenantId,
       `UPDATE conversation_logs
        SET exported_at = $1, export_format = $2
        WHERE id = ANY($3)`,
@@ -397,7 +408,7 @@ app.get("/:tenantId/stats", async (c) => {
   try {
     const tenantId = c.req.param("tenantId");
 
-    const data = await queryAll<{
+    const data = await tenantQueryAll<{
       scenario_type: string | null;
       quality_score: number | null;
       reviewed: boolean;
@@ -405,6 +416,7 @@ app.get("/:tenantId/stats", async (c) => {
       has_tool_calls: boolean;
       turn_count: number;
     }>(
+      tenantId,
       `SELECT scenario_type, quality_score, reviewed, flagged, has_tool_calls, turn_count
        FROM conversation_logs
        WHERE tenant_id = $1`,

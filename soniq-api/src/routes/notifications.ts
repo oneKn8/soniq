@@ -1,7 +1,7 @@
 // Notifications API Routes
 import { Hono } from "hono";
 import { z } from "zod";
-import { queryOne, queryAll } from "../services/database/client.js";
+import { tenantQueryOne, tenantQueryAll } from "../services/database/client.js";
 import {
   insertOne,
   updateOne,
@@ -121,14 +121,16 @@ notificationsRoutes.get("/", async (c) => {
     const whereClause = `WHERE ${conditions.join(" AND ")}`;
 
     // Get total count
-    const countResult = await queryOne<{ count: string }>(
+    const countResult = await tenantQueryOne<{ count: string }>(
+      tenantId,
       `SELECT COUNT(*) as count FROM notifications ${whereClause}`,
       params,
     );
     const total = parseInt(countResult?.count || "0", 10);
 
     // Get data with pagination
-    const data = await queryAll<NotificationRow>(
+    const data = await tenantQueryAll<NotificationRow>(
+      tenantId,
       `SELECT * FROM notifications ${whereClause}
        ORDER BY created_at DESC
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
@@ -153,7 +155,8 @@ notificationsRoutes.get("/templates", async (c) => {
   try {
     const tenantId = getTenantId(c);
 
-    const data = await queryAll<NotificationTemplateRow>(
+    const data = await tenantQueryAll<NotificationTemplateRow>(
+      tenantId,
       `SELECT * FROM notification_templates
        WHERE tenant_id = $1
        ORDER BY notification_type, channel`,
@@ -172,7 +175,8 @@ notificationsRoutes.get("/preferences", async (c) => {
   try {
     const tenantId = getTenantId(c);
 
-    const data = await queryAll<NotificationPreferenceRow>(
+    const data = await tenantQueryAll<NotificationPreferenceRow>(
+      tenantId,
       `SELECT * FROM notification_preferences WHERE tenant_id = $1`,
       [tenantId],
     );
@@ -190,7 +194,8 @@ notificationsRoutes.get("/:id", async (c) => {
     const tenantId = getTenantId(c);
     const id = c.req.param("id");
 
-    const data = await queryOne<NotificationRow>(
+    const data = await tenantQueryOne<NotificationRow>(
+      tenantId,
       `SELECT * FROM notifications WHERE tenant_id = $1 AND id = $2`,
       [tenantId, id],
     );
@@ -264,9 +269,10 @@ notificationsRoutes.post("/preview", async (c) => {
 
     let template: NotificationTemplate | null = null;
     if (template_id) {
-      const row = await queryOne<NotificationTemplateRow>(
-        `SELECT * FROM notification_templates WHERE id = $1`,
-        [template_id],
+      const row = await tenantQueryOne<NotificationTemplateRow>(
+        tenantId,
+        `SELECT * FROM notification_templates WHERE id = $1 AND tenant_id = $2`,
+        [template_id, tenantId],
       );
       if (row) {
         // Convert nullable DB fields to optional fields for the type
@@ -336,6 +342,8 @@ notificationsRoutes.post("/templates", async (c) => {
         ...parsed.data,
         is_active: true,
       },
+      "*",
+      tenantId,
     );
 
     return c.json(data, 201);
@@ -362,6 +370,8 @@ notificationsRoutes.put("/templates/:id", async (c) => {
       "notification_templates",
       body,
       { tenant_id: tenantId, id },
+      "*",
+      tenantId,
     );
 
     if (!data) {
@@ -387,6 +397,8 @@ notificationsRoutes.put("/preferences", async (c) => {
       "notification_preferences",
       { tenant_id: tenantId, ...body },
       ["tenant_id", "notification_type"],
+      "*",
+      tenantId,
     );
 
     return c.json(data);

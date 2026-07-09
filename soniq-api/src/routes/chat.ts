@@ -344,7 +344,6 @@ interface WidgetConfig {
   agent_name: string;
   business_name: string;
   greeting: string;
-  industry: string;
   theme_color: string;
 }
 
@@ -365,7 +364,6 @@ chatRoutes.get("/config/:tenant_id", async (c) => {
           ?.replace(/{businessName}/g, tenant.business_name)
           .replace(/{agentName}/g, tenant.agent_name || "Assistant") ||
         `Hi! I'm ${tenant.agent_name || "here"} to help you with ${tenant.business_name}. How can I assist you today?`,
-      industry: tenant.industry,
       theme_color: "#6366f1",
     };
 
