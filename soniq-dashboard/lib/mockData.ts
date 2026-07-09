@@ -1,4 +1,4 @@
-// Soniq Core - Mock Data Generators
+// Soniq - Mock Data Generators
 // SOW-Aligned Realistic Data
 
 import type {

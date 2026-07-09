@@ -1,4 +1,4 @@
-// Soniq Core - Production Type System
+// Soniq - Production Type System
 // Voice Logic Engine Schema
 
 // ============================================================================
