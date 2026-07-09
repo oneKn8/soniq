@@ -1,7 +1,7 @@
 // Voicemail Service
 // Handles voicemail recording and storage when agent is unavailable
 
-import { queryOne, queryAll } from "../database/client.js";
+import { tenantQueryOne, tenantQueryAll } from "../database/client.js";
 import { insertOne, updateOne } from "../database/query-helpers.js";
 import { logger } from "../../lib/logger.js";
 
@@ -125,18 +125,34 @@ export async function saveVoicemail(
   voicemail: VoicemailRecord,
 ): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
-    const data = await insertOne<VoicemailInsertRow>("voicemails", {
-      tenant_id: voicemail.tenantId,
-      call_sid: voicemail.callSid,
-      caller_phone: voicemail.callerPhone,
-      caller_name: voicemail.callerName,
-      recording_url: voicemail.recordingUrl,
-      recording_sid: voicemail.recordingSid,
-      duration_seconds: voicemail.durationSeconds,
-      transcript: voicemail.transcript,
-      reason: voicemail.reason,
-      status: voicemail.status || "pending",
-    });
+    // Idempotency: a replayed (signed) webhook must not create a duplicate row.
+    // Dedupe on the provider-unique call_sid and return the existing record.
+    const existing = await tenantQueryOne<VoicemailInsertRow>(
+      voicemail.tenantId,
+      "SELECT id FROM voicemails WHERE tenant_id = $1 AND call_sid = $2",
+      [voicemail.tenantId, voicemail.callSid],
+    );
+    if (existing) {
+      return { success: true, id: existing.id };
+    }
+
+    const data = await insertOne<VoicemailInsertRow>(
+      "voicemails",
+      {
+        tenant_id: voicemail.tenantId,
+        call_sid: voicemail.callSid,
+        caller_phone: voicemail.callerPhone,
+        caller_name: voicemail.callerName,
+        recording_url: voicemail.recordingUrl,
+        recording_sid: voicemail.recordingSid,
+        duration_seconds: voicemail.durationSeconds,
+        transcript: voicemail.transcript,
+        reason: voicemail.reason,
+        status: voicemail.status || "pending",
+      },
+      "*",
+      voicemail.tenantId,
+    );
 
     return { success: true, id: data.id };
   } catch (error) {
@@ -238,8 +254,16 @@ export async function getVoicemails(
     dataSql += ` ORDER BY created_at DESC LIMIT $${dataParams.length + 1} OFFSET $${dataParams.length + 2}`;
     dataParams.push(limit, offset);
 
-    const countResult = await queryOne<CountRow>(countSql, countParams);
-    const data = await queryAll<VoicemailDbRow>(dataSql, dataParams);
+    const countResult = await tenantQueryOne<CountRow>(
+      tenantId,
+      countSql,
+      countParams,
+    );
+    const data = await tenantQueryAll<VoicemailDbRow>(
+      tenantId,
+      dataSql,
+      dataParams,
+    );
 
     return {
       voicemails: (data || []).map(mapDbToVoicemail),
@@ -257,9 +281,10 @@ export async function getVoicemails(
 export async function updateVoicemailStatus(
   id: string,
   status: VoicemailRecord["status"],
+  tenantId: string,
 ): Promise<boolean> {
   try {
-    await updateOne("voicemails", { status }, { id });
+    await updateOne("voicemails", { status }, { id }, "*", tenantId);
 
     return true;
   } catch (error) {

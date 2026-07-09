@@ -7,7 +7,7 @@ import { logger } from "../../lib/logger.js";
 
 export interface CallRecord {
   tenant_id: string;
-  vapi_call_id: string; // Using callSid here
+  provider_call_id: string; // Using callSid here
   caller_phone: string | null;
   caller_name: string | null;
   direction: "inbound" | "outbound";
@@ -319,7 +319,7 @@ export async function saveCallRecord(
 
     const callRecord: Omit<CallRecord, "id" | "created_at" | "updated_at"> = {
       tenant_id: session.tenantId,
-      vapi_call_id: session.callSid,
+      provider_call_id: session.callSid,
       caller_phone: session.callerPhone || null,
       caller_name: null, // Could be extracted from conversation
       direction: "inbound",
@@ -339,7 +339,7 @@ export async function saveCallRecord(
       contact_id: null,
     };
 
-    await insertOne("calls", callRecord);
+    await insertOne("calls", callRecord, "*", session.tenantId);
 
     logger.info(`[CALL-LOGGER] Saved call ${session.callSid}: ${durationSeconds}s, ${outcome.type}, sentiment: ${sentiment.toFixed(2)}`);
   } catch (error) {
@@ -356,7 +356,7 @@ export async function updateCallRecord(
   updates: Partial<CallRecord>,
 ): Promise<void> {
   try {
-    await updateOne("calls", updates, { vapi_call_id: callSid });
+    await updateOne("calls", updates, { provider_call_id: callSid });
   } catch (error) {
     logger.error({ error }, "[CALL-LOGGER] Error updating call record:");
     throw error;

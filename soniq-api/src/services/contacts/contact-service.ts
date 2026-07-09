@@ -1,7 +1,7 @@
 // Contact Service - Core CRM operations
 // Handles CRUD, search, lookup, metrics, and bulk operations
 
-import { queryOne, queryAll } from "../database/client.js";
+import { tenantQueryOne, tenantQueryAll } from "../database/client.js";
 import {
   insertOne,
   updateOne,
@@ -58,7 +58,7 @@ export async function createContact(
       custom_fields: input.custom_fields || {},
       status: "active",
       lead_status: "new",
-    });
+    }, "*", tenantId);
 
     // Cache the new contact
     contactCache.set(tenantId, phoneNormalized, data);
@@ -88,7 +88,8 @@ export async function getContact(
   tenantId: string,
   contactId: string,
 ): Promise<Contact | null> {
-  const data = await queryOne<Contact>(
+  const data = await tenantQueryOne<Contact>(
+    tenantId,
     "SELECT * FROM contacts WHERE tenant_id = $1 AND id = $2",
     [tenantId, contactId],
   );
@@ -145,10 +146,13 @@ export async function updateContact(
   if (input.custom_fields !== undefined)
     updateData.custom_fields = input.custom_fields;
 
-  const data = await updateOne<Contact>("contacts", updateData, {
-    tenant_id: tenantId,
-    id: contactId,
-  });
+  const data = await updateOne<Contact>(
+    "contacts",
+    updateData,
+    { tenant_id: tenantId, id: contactId },
+    "*",
+    tenantId,
+  );
 
   if (!data) {
     throw new Error("Failed to update contact");
@@ -184,6 +188,7 @@ export async function deleteContact(
     "contacts",
     { status: "inactive" },
     { tenant_id: tenantId, id: contactId },
+    tenantId,
   );
 
   // Invalidate cache
@@ -258,7 +263,8 @@ export async function lookupByPhone(
     return cached;
   }
 
-  const data = await queryOne<Contact>(
+  const data = await tenantQueryOne<Contact>(
+    tenantId,
     "SELECT * FROM contacts WHERE tenant_id = $1 AND phone_normalized = $2",
     [tenantId, phoneNormalized],
   );
@@ -278,7 +284,8 @@ export async function lookupByEmail(
   tenantId: string,
   email: string,
 ): Promise<Contact | null> {
-  const data = await queryOne<Contact>(
+  const data = await tenantQueryOne<Contact>(
+    tenantId,
     "SELECT * FROM contacts WHERE tenant_id = $1 AND email = $2",
     [tenantId, email.toLowerCase().trim()],
   );
@@ -428,6 +435,7 @@ export async function searchContacts(
     orderDir: sortOrder,
     limit,
     offset,
+    tenantId,
   });
 }
 
@@ -453,6 +461,7 @@ export async function getContactHistory(
     orderDir: "desc",
     limit,
     offset,
+    tenantId,
   });
 }
 
@@ -471,16 +480,21 @@ export async function addActivity(
     performedBy?: string;
   } = {},
 ): Promise<ContactActivity> {
-  const data = await insertOne<ContactActivity>("contact_activity", {
-    tenant_id: tenantId,
-    contact_id: contactId,
-    activity_type: activityType,
-    description: details.description,
-    metadata: details.metadata || {},
-    related_id: details.relatedId,
-    related_type: details.relatedType,
-    performed_by: details.performedBy,
-  });
+  const data = await insertOne<ContactActivity>(
+    "contact_activity",
+    {
+      tenant_id: tenantId,
+      contact_id: contactId,
+      activity_type: activityType,
+      description: details.description,
+      metadata: details.metadata || {},
+      related_id: details.relatedId,
+      related_type: details.relatedType,
+      performed_by: details.performedBy,
+    },
+    "*",
+    tenantId,
+  );
 
   return data;
 }
@@ -565,10 +579,12 @@ export async function updateMetrics(
   }
 
   try {
-    await updateMany("contacts", updates, {
-      tenant_id: tenantId,
-      id: contactId,
-    });
+    await updateMany(
+      "contacts",
+      updates,
+      { tenant_id: tenantId, id: contactId },
+      tenantId,
+    );
   } catch (error) {
     logger.error(`Failed to update contact metrics: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
@@ -637,17 +653,22 @@ export async function calculateEngagementDetails(
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
   // Get recent calls
-  const recentCalls = await queryAll<{
+  const recentCalls = await tenantQueryAll<{
     created_at: string;
     outcome_type: string;
   }>(
+    tenantId,
     `SELECT created_at, outcome_type FROM calls
      WHERE contact_id = $1 AND tenant_id = $2 AND created_at >= $3`,
     [contactId, tenantId, thirtyDaysAgo.toISOString()],
   );
 
   // Get recent bookings
-  const recentBookings = await queryAll<{ created_at: string; status: string }>(
+  const recentBookings = await tenantQueryAll<{
+    created_at: string;
+    status: string;
+  }>(
+    tenantId,
     `SELECT created_at, status FROM bookings
      WHERE contact_id = $1 AND tenant_id = $2 AND created_at >= $3`,
     [contactId, tenantId, ninetyDaysAgo.toISOString()],
@@ -752,6 +773,7 @@ export async function calculateEngagementDetails(
     "contacts",
     { engagement_score: totalScore, engagement_level: level },
     { id: contactId },
+    tenantId,
   );
 
   return { score: totalScore, level, factors };
@@ -773,7 +795,8 @@ export async function getContactNotes(
   const offset = pagination.offset || 0;
 
   // Count total
-  const countResult = await queryOne<{ total: string }>(
+  const countResult = await tenantQueryOne<{ total: string }>(
+    tenantId,
     `SELECT COUNT(*) as total FROM contact_notes
      WHERE tenant_id = $1 AND contact_id = $2`,
     [tenantId, contactId],
@@ -781,7 +804,8 @@ export async function getContactNotes(
   const total = parseInt(countResult?.total || "0", 10);
 
   // Fetch data with custom ordering (pinned first, then by date)
-  const data = await queryAll<ContactNote>(
+  const data = await tenantQueryAll<ContactNote>(
+    tenantId,
     `SELECT * FROM contact_notes
      WHERE tenant_id = $1 AND contact_id = $2
      ORDER BY is_pinned DESC, created_at DESC
@@ -807,18 +831,23 @@ export async function addNote(
   createdBy?: string,
   createdByName?: string,
 ): Promise<ContactNote> {
-  const data = await insertOne<ContactNote>("contact_notes", {
-    tenant_id: tenantId,
-    contact_id: input.contact_id,
-    note_type: input.note_type || "general",
-    content: input.content,
-    call_id: input.call_id,
-    booking_id: input.booking_id,
-    is_pinned: input.is_pinned || false,
-    is_private: input.is_private || false,
-    created_by: createdBy,
-    created_by_name: createdByName,
-  });
+  const data = await insertOne<ContactNote>(
+    "contact_notes",
+    {
+      tenant_id: tenantId,
+      contact_id: input.contact_id,
+      note_type: input.note_type || "general",
+      content: input.content,
+      call_id: input.call_id,
+      booking_id: input.booking_id,
+      is_pinned: input.is_pinned || false,
+      is_private: input.is_private || false,
+      created_by: createdBy,
+      created_by_name: createdByName,
+    },
+    "*",
+    tenantId,
+  );
 
   // Log activity
   await addActivity(tenantId, input.contact_id, "note_added", {
@@ -856,7 +885,7 @@ export async function addTag(
 
   const newTags = [...contact.tags, tag];
 
-  await updateMany("contacts", { tags: newTags }, { id: contactId });
+  await updateMany("contacts", { tags: newTags }, { id: contactId }, tenantId);
 
   // Invalidate cache
   contactCache.invalidate(tenantId, contact.phone_normalized);
@@ -883,7 +912,7 @@ export async function removeTag(
 
   const newTags = contact.tags.filter((t) => t !== tag);
 
-  await updateMany("contacts", { tags: newTags }, { id: contactId });
+  await updateMany("contacts", { tags: newTags }, { id: contactId }, tenantId);
 
   // Invalidate cache
   contactCache.invalidate(tenantId, contact.phone_normalized);
@@ -1042,6 +1071,7 @@ export async function mergeContacts(
       "calls",
       { contact_id: primaryId },
       { contact_id: secondaryId },
+      tenantId,
     );
 
     // Move bookings to primary
@@ -1049,6 +1079,7 @@ export async function mergeContacts(
       "bookings",
       { contact_id: primaryId },
       { contact_id: secondaryId },
+      tenantId,
     );
 
     // Move notes to primary
@@ -1056,6 +1087,7 @@ export async function mergeContacts(
       "contact_notes",
       { contact_id: primaryId },
       { contact_id: secondaryId },
+      tenantId,
     );
 
     // Move activity to primary
@@ -1063,6 +1095,7 @@ export async function mergeContacts(
       "contact_activity",
       { contact_id: primaryId },
       { contact_id: secondaryId },
+      tenantId,
     );
 
     // Merge metrics
@@ -1103,10 +1136,15 @@ export async function mergeContacts(
       updates.last_contact_at = secondary.last_contact_at;
     }
 
-    await updateMany("contacts", updates, { id: primaryId });
+    await updateMany("contacts", updates, { id: primaryId }, tenantId);
 
     // Soft delete secondary
-    await updateMany("contacts", { status: "inactive" }, { id: secondaryId });
+    await updateMany(
+      "contacts",
+      { status: "inactive" },
+      { id: secondaryId },
+      tenantId,
+    );
 
     // Log merge activity
     await addActivity(tenantId, primaryId, "merged", {

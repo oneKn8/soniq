@@ -1,7 +1,7 @@
 // Task Service - CRM task management operations
 // Handles CRUD, search, upcoming/overdue queries, and aggregation
 
-import { queryOne, queryAll } from "../database/client.js";
+import { tenantQueryOne, tenantQueryAll } from "../database/client.js";
 import { insertOne, updateOne, deleteRows } from "../database/query-helpers.js";
 import {
   Task,
@@ -108,7 +108,8 @@ export async function searchTasks(
   const whereClause = `WHERE ${conditions.join(" AND ")}`;
 
   // Count query
-  const countResult = await queryOne<{ total: string }>(
+  const countResult = await tenantQueryOne<{ total: string }>(
+    tenantId,
     `SELECT COUNT(*) as total FROM tasks t ${whereClause}`,
     params,
   );
@@ -116,7 +117,8 @@ export async function searchTasks(
 
   // Data query with joined contact name
   const direction = sortOrder === "desc" ? "DESC" : "ASC";
-  const data = await queryAll<Task>(
+  const data = await tenantQueryAll<Task>(
+    tenantId,
     `SELECT t.*, c.name as contact_name
      FROM tasks t
      LEFT JOIN contacts c ON c.id = t.contact_id
@@ -146,7 +148,8 @@ export async function getUpcomingTasks(
   tenantId: string,
   days: number = 7,
 ): Promise<Task[]> {
-  return queryAll<Task>(
+  return tenantQueryAll<Task>(
+    tenantId,
     `SELECT t.*, c.name as contact_name
      FROM tasks t
      LEFT JOIN contacts c ON c.id = t.contact_id
@@ -163,7 +166,8 @@ export async function getUpcomingTasks(
  * Get past-due tasks that have not been completed.
  */
 export async function getOverdueTasks(tenantId: string): Promise<Task[]> {
-  return queryAll<Task>(
+  return tenantQueryAll<Task>(
+    tenantId,
     `SELECT t.*, c.name as contact_name
      FROM tasks t
      LEFT JOIN contacts c ON c.id = t.contact_id
@@ -186,7 +190,8 @@ export async function getTask(
   tenantId: string,
   id: string,
 ): Promise<Task | null> {
-  return queryOne<Task>(
+  return tenantQueryOne<Task>(
+    tenantId,
     `SELECT t.*, c.name as contact_name
      FROM tasks t
      LEFT JOIN contacts c ON c.id = t.contact_id
@@ -219,7 +224,7 @@ export async function createTask(
   if (input.assigned_to !== undefined) data.assigned_to = input.assigned_to;
   if (input.created_by !== undefined) data.created_by = input.created_by;
 
-  return insertOne<Task>("tasks", data);
+  return insertOne<Task>("tasks", data, "*", tenantId);
 }
 
 /**
@@ -246,10 +251,13 @@ export async function updateTask(
   if (input.assigned_to !== undefined)
     updateData.assigned_to = input.assigned_to;
 
-  const result = await updateOne<Task>("tasks", updateData, {
-    tenant_id: tenantId,
-    id,
-  });
+  const result = await updateOne<Task>(
+    "tasks",
+    updateData,
+    { tenant_id: tenantId, id },
+    "*",
+    tenantId,
+  );
 
   if (!result) {
     throw new Error("Task not found");
@@ -269,6 +277,8 @@ export async function completeTask(
     "tasks",
     { done_at: new Date().toISOString(), updated_at: new Date().toISOString() },
     { tenant_id: tenantId, id },
+    "*",
+    tenantId,
   );
 
   if (!result) {
@@ -282,7 +292,7 @@ export async function completeTask(
  * Hard-delete a task.
  */
 export async function deleteTask(tenantId: string, id: string): Promise<void> {
-  const deleted = await deleteRows("tasks", { tenant_id: tenantId, id });
+  const deleted = await deleteRows("tasks", { tenant_id: tenantId, id }, tenantId);
 
   if (deleted === 0) {
     throw new Error("Task not found");
@@ -300,7 +310,8 @@ export async function getTasksForContact(
   tenantId: string,
   contactId: string,
 ): Promise<Task[]> {
-  return queryAll<Task>(
+  return tenantQueryAll<Task>(
+    tenantId,
     `SELECT t.*, c.name as contact_name
      FROM tasks t
      LEFT JOIN contacts c ON c.id = t.contact_id
@@ -317,7 +328,8 @@ export async function getTasksForDeal(
   tenantId: string,
   dealId: string,
 ): Promise<Task[]> {
-  return queryAll<Task>(
+  return tenantQueryAll<Task>(
+    tenantId,
     `SELECT t.*, c.name as contact_name
      FROM tasks t
      LEFT JOIN contacts c ON c.id = t.contact_id
@@ -336,12 +348,13 @@ export async function getTasksForDeal(
  * Returns pending, overdue, due today, and completed this week.
  */
 export async function getTaskCounts(tenantId: string): Promise<TaskCounts> {
-  const result = await queryOne<{
+  const result = await tenantQueryOne<{
     pending: string;
     overdue: string;
     due_today: string;
     completed_this_week: string;
   }>(
+    tenantId,
     `SELECT
        COUNT(*) FILTER (WHERE done_at IS NULL) as pending,
        COUNT(*) FILTER (WHERE done_at IS NULL AND due_date < CURRENT_DATE) as overdue,

@@ -1,5 +1,5 @@
 // Booking Service - CRM booking management
-import { queryOne, queryAll } from "../database/client.js";
+import { tenantQueryOne, tenantQueryAll } from "../database/client.js";
 import {
   insertOne,
   updateOne,
@@ -37,13 +37,18 @@ export async function createBooking(
 ): Promise<Booking> {
   const confirmationCode = generateConfirmationCode();
 
-  const booking = await insertOne<Booking>("bookings", {
-    tenant_id: tenantId,
-    ...data,
-    confirmation_code: confirmationCode,
-    status: "pending",
-    reminder_sent: false,
-  });
+  const booking = await insertOne<Booking>(
+    "bookings",
+    {
+      tenant_id: tenantId,
+      ...data,
+      confirmation_code: confirmationCode,
+      status: "pending",
+      reminder_sent: false,
+    },
+    "*",
+    tenantId,
+  );
 
   // Update slot booked_count if slot_id provided
   if (data.slot_id) {
@@ -57,7 +62,8 @@ export async function getBooking(
   tenantId: string,
   id: string,
 ): Promise<Booking | null> {
-  return queryOne<Booking>(
+  return tenantQueryOne<Booking>(
+    tenantId,
     "SELECT * FROM bookings WHERE tenant_id = $1 AND id = $2",
     [tenantId, id],
   );
@@ -72,10 +78,13 @@ export async function updateBooking(
   delete (updates as any).tenant_id;
   delete (updates as any).confirmation_code;
 
-  const result = await updateOne<Booking>("bookings", updates, {
-    tenant_id: tenantId,
-    id,
-  });
+  const result = await updateOne<Booking>(
+    "bookings",
+    updates,
+    { tenant_id: tenantId, id },
+    "*",
+    tenantId,
+  );
 
   if (!result) {
     throw new Error("Failed to update booking: not found");
@@ -214,6 +223,7 @@ export async function searchBookings(
     orderDir: sortOrder,
     limit,
     offset,
+    tenantId,
   });
 }
 
@@ -222,7 +232,7 @@ export async function getCalendarData(
   startDate: string,
   endDate: string,
 ): Promise<CalendarEvent[]> {
-  const data = await queryAll<{
+  const data = await tenantQueryAll<{
     id: string;
     customer_name: string;
     customer_phone: string;
@@ -233,6 +243,7 @@ export async function getCalendarData(
     booking_type: string;
     confirmation_code: string;
   }>(
+    tenantId,
     `SELECT id, customer_name, customer_phone, booking_date, booking_time,
             duration_minutes, status, booking_type, confirmation_code
      FROM bookings
@@ -261,10 +272,11 @@ export async function getDaySummary(
   tenantId: string,
   date: string,
 ): Promise<DaySummary> {
-  const bookings = await queryAll<{
+  const bookings = await tenantQueryAll<{
     status: string;
     amount_cents: number | null;
   }>(
+    tenantId,
     "SELECT status, amount_cents FROM bookings WHERE tenant_id = $1 AND booking_date = $2",
     [tenantId, date],
   );
@@ -311,7 +323,8 @@ export async function getUpcomingBookings(
   const now = new Date();
   const future = new Date(now.getTime() + hoursAhead * 60 * 60 * 1000);
 
-  return queryAll<Booking>(
+  return tenantQueryAll<Booking>(
+    tenantId,
     `SELECT * FROM bookings
      WHERE tenant_id = $1
        AND status = ANY($2)

@@ -1,7 +1,7 @@
 // Deal Service - Sales pipeline operations
 // Handles CRUD, search, pipeline view, and stage management
 
-import { queryOne, queryAll } from "../database/client.js";
+import { tenantQueryOne, tenantQueryAll } from "../database/client.js";
 import { insertOne, updateOne } from "../database/query-helpers.js";
 import {
   Deal,
@@ -99,7 +99,8 @@ export async function searchDeals(
   const whereClause = `WHERE ${conditions.join(" AND ")}`;
 
   // Count query
-  const countResult = await queryOne<{ total: string }>(
+  const countResult = await tenantQueryOne<{ total: string }>(
+    tenantId,
     `SELECT COUNT(*) as total FROM deals d ${whereClause}`,
     params,
   );
@@ -107,7 +108,8 @@ export async function searchDeals(
 
   // Data query with joined contact name
   const direction = sortOrder === "desc" ? "DESC" : "ASC";
-  const data = await queryAll<Deal>(
+  const data = await tenantQueryAll<Deal>(
+    tenantId,
     `SELECT d.*, c.name as contact_name
      FROM deals d
      LEFT JOIN contacts c ON c.id = d.contact_id
@@ -143,11 +145,12 @@ export async function getPipeline(
   const knownStageIds = new Set(stageConfigs.map((s) => s.id));
 
   // Get aggregate counts per stage
-  const stageCounts = await queryAll<{
+  const stageCounts = await tenantQueryAll<{
     stage: DealStage;
     count: string;
     total_amount_cents: string;
   }>(
+    tenantId,
     `SELECT stage, COUNT(*) as count, COALESCE(SUM(amount_cents), 0) as total_amount_cents
      FROM deals
      WHERE tenant_id = $1 AND archived_at IS NULL
@@ -156,7 +159,8 @@ export async function getPipeline(
   );
 
   // Get all active deals with contact names, ordered by sort_index
-  const deals = await queryAll<Deal>(
+  const deals = await tenantQueryAll<Deal>(
+    tenantId,
     `SELECT d.*, c.name as contact_name
      FROM deals d
      LEFT JOIN contacts c ON c.id = d.contact_id
@@ -229,7 +233,8 @@ export async function getDeal(
   tenantId: string,
   id: string,
 ): Promise<Deal | null> {
-  return queryOne<Deal>(
+  return tenantQueryOne<Deal>(
+    tenantId,
     `SELECT d.*, c.name as contact_name
      FROM deals d
      LEFT JOIN contacts c ON c.id = d.contact_id
@@ -264,7 +269,7 @@ export async function createDeal(
   if (input.call_id !== undefined) data.call_id = input.call_id;
   if (input.created_by !== undefined) data.created_by = input.created_by;
 
-  return insertOne<Deal>("deals", data);
+  return insertOne<Deal>("deals", data, "*", tenantId);
 }
 
 /**
@@ -290,10 +295,13 @@ export async function updateDeal(
     updateData.expected_close = input.expected_close;
   if (input.contact_id !== undefined) updateData.contact_id = input.contact_id;
 
-  const result = await updateOne<Deal>("deals", updateData, {
-    tenant_id: tenantId,
-    id,
-  });
+  const result = await updateOne<Deal>(
+    "deals",
+    updateData,
+    { tenant_id: tenantId, id },
+    "*",
+    tenantId,
+  );
 
   if (!result) {
     throw new Error("Deal not found");
@@ -320,10 +328,13 @@ export async function updateStage(
     updateData.sort_index = sortIndex;
   }
 
-  const result = await updateOne<Deal>("deals", updateData, {
-    tenant_id: tenantId,
-    id,
-  });
+  const result = await updateOne<Deal>(
+    "deals",
+    updateData,
+    { tenant_id: tenantId, id },
+    "*",
+    tenantId,
+  );
 
   if (!result) {
     throw new Error("Deal not found");
@@ -343,6 +354,8 @@ export async function archiveDeal(tenantId: string, id: string): Promise<Deal> {
       updated_at: new Date().toISOString(),
     },
     { tenant_id: tenantId, id },
+    "*",
+    tenantId,
   );
 
   if (!result) {
@@ -359,7 +372,8 @@ export async function getDealsForContact(
   tenantId: string,
   contactId: string,
 ): Promise<Deal[]> {
-  return queryAll<Deal>(
+  return tenantQueryAll<Deal>(
+    tenantId,
     `SELECT d.*, c.name as contact_name
      FROM deals d
      LEFT JOIN contacts c ON c.id = d.contact_id

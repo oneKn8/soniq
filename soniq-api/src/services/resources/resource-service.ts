@@ -1,5 +1,5 @@
 // Resource Service - Staff, Rooms, Equipment management
-import { queryOne, queryAll } from "../database/client.js";
+import { tenantQueryOne, tenantQueryAll } from "../database/client.js";
 import {
   insertOne,
   updateOne,
@@ -24,21 +24,26 @@ export async function createResource(
   tenantId: string,
   input: CreateResourceInput,
 ): Promise<Resource> {
-  return insertOne<Resource>("resources", {
-    tenant_id: tenantId,
-    name: input.name,
-    type: input.type,
-    description: input.description,
-    capacity: input.capacity ?? 1,
-    default_duration_minutes: input.default_duration_minutes ?? 60,
-    accepts_bookings: input.accepts_bookings ?? true,
-    buffer_before_minutes: input.buffer_before_minutes ?? 0,
-    buffer_after_minutes: input.buffer_after_minutes ?? 0,
-    color: input.color,
-    metadata: input.metadata ?? {},
-    is_active: true,
-    sort_order: 0,
-  });
+  return insertOne<Resource>(
+    "resources",
+    {
+      tenant_id: tenantId,
+      name: input.name,
+      type: input.type,
+      description: input.description,
+      capacity: input.capacity ?? 1,
+      default_duration_minutes: input.default_duration_minutes ?? 60,
+      accepts_bookings: input.accepts_bookings ?? true,
+      buffer_before_minutes: input.buffer_before_minutes ?? 0,
+      buffer_after_minutes: input.buffer_after_minutes ?? 0,
+      color: input.color,
+      metadata: input.metadata ?? {},
+      is_active: true,
+      sort_order: 0,
+    },
+    "*",
+    tenantId,
+  );
 }
 
 /**
@@ -48,7 +53,8 @@ export async function getResource(
   tenantId: string,
   id: string,
 ): Promise<Resource | null> {
-  return queryOne<Resource>(
+  return tenantQueryOne<Resource>(
+    tenantId,
     `SELECT * FROM resources WHERE tenant_id = $1 AND id = $2`,
     [tenantId, id],
   );
@@ -69,10 +75,13 @@ export async function updateResource(
   delete cleanUpdates.id;
   delete cleanUpdates.tenant_id;
 
-  const result = await updateOne<Resource>("resources", cleanUpdates, {
-    tenant_id: tenantId,
-    id,
-  });
+  const result = await updateOne<Resource>(
+    "resources",
+    cleanUpdates,
+    { tenant_id: tenantId, id },
+    "*",
+    tenantId,
+  );
 
   if (!result) {
     throw new Error("Resource not found");
@@ -92,6 +101,8 @@ export async function deleteResource(
     "resources",
     { is_active: false },
     { tenant_id: tenantId, id },
+    "*",
+    tenantId,
   );
 }
 
@@ -102,7 +113,7 @@ export async function hardDeleteResource(
   tenantId: string,
   id: string,
 ): Promise<void> {
-  await deleteRows("resources", { tenant_id: tenantId, id });
+  await deleteRows("resources", { tenant_id: tenantId, id }, tenantId);
 }
 
 // ============================================================================
@@ -179,7 +190,11 @@ export async function listResources(
 
   // Count query
   const countSql = `SELECT COUNT(*) as total FROM resources ${whereClause}`;
-  const countResult = await queryOne<{ total: string }>(countSql, params);
+  const countResult = await tenantQueryOne<{ total: string }>(
+    tenantId,
+    countSql,
+    params,
+  );
   const total = parseInt(countResult?.total || "0", 10);
 
   // Data query
@@ -189,7 +204,11 @@ export async function listResources(
     ORDER BY ${sortBy} ${orderDirection}
     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
   `;
-  const data = await queryAll<Resource>(dataSql, [...params, limit, offset]);
+  const data = await tenantQueryAll<Resource>(tenantId, dataSql, [
+    ...params,
+    limit,
+    offset,
+  ]);
 
   return {
     data,
@@ -273,7 +292,7 @@ export async function getResourceAvailability(
       AND status = 'available'
   `;
 
-  const data = await queryAll<AvailabilitySlotRow>(sql, [
+  const data = await tenantQueryAll<AvailabilitySlotRow>(tenantId, sql, [
     tenantId,
     resourceId,
     startDate,
@@ -319,6 +338,8 @@ export async function reorderResources(
       "resources",
       { sort_order: i },
       { tenant_id: tenantId, id: resourceIds[i] },
+      "*",
+      tenantId,
     );
   }
 }

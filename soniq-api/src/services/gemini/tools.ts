@@ -112,7 +112,7 @@ export async function executeCreateBooking(
     let callId: string | null = null;
     if (context.callSid) {
       const callRecord = await queryOne<CallIdRow>(
-        "SELECT id FROM calls WHERE vapi_call_id = $1",
+        "SELECT id FROM calls WHERE provider_call_id = $1",
         [context.callSid],
       );
       callId = callRecord?.id || null;
@@ -171,7 +171,7 @@ export async function executeTransferToHuman(
   try {
     // Update call outcome
     await query(
-      `UPDATE calls SET outcome_type = $1, updated_at = $2 WHERE vapi_call_id = $3`,
+      `UPDATE calls SET outcome_type = $1, updated_at = $2 WHERE provider_call_id = $3`,
       ["escalation", new Date().toISOString(), context.callSid],
     );
 
@@ -389,7 +389,7 @@ export async function executeLogNote(
     let callId: string | null = null;
     if (context.callSid) {
       const callRecord = await queryOne<CallIdRow>(
-        "SELECT id FROM calls WHERE vapi_call_id = $1",
+        "SELECT id FROM calls WHERE provider_call_id = $1",
         [context.callSid],
       );
       callId = callRecord?.id || null;

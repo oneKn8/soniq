@@ -1,5 +1,5 @@
 // Notification Service - Email and SMS notifications
-import { queryOne, queryAll } from "../database/client.js";
+import { queryOne, queryAll, tenantQueryOne } from "../database/client.js";
 import { insertOne, updateOne } from "../database/query-helpers.js";
 import {
   Notification,
@@ -145,23 +145,28 @@ export async function queueNotification(
   // Render content
   const rendered = renderTemplate(template, data.template_variables || {});
 
-  const notification = await insertOne<Notification>("notifications", {
-    tenant_id: tenantId,
-    contact_id: data.contact_id,
-    channel: data.channel,
-    notification_type: data.notification_type,
-    status: data.scheduled_at ? "pending" : "queued",
-    recipient: data.recipient,
-    recipient_name: data.recipient_name,
-    subject: rendered.subject,
-    body: rendered.body,
-    body_html: rendered.bodyHtml,
-    template_id: template?.id,
-    template_variables: data.template_variables || {},
-    scheduled_at: data.scheduled_at,
-    booking_id: data.booking_id,
-    call_id: data.call_id,
-  });
+  const notification = await insertOne<Notification>(
+    "notifications",
+    {
+      tenant_id: tenantId,
+      contact_id: data.contact_id,
+      channel: data.channel,
+      notification_type: data.notification_type,
+      status: data.scheduled_at ? "pending" : "queued",
+      recipient: data.recipient,
+      recipient_name: data.recipient_name,
+      subject: rendered.subject,
+      body: rendered.body,
+      body_html: rendered.bodyHtml,
+      template_id: template?.id,
+      template_variables: data.template_variables || {},
+      scheduled_at: data.scheduled_at,
+      booking_id: data.booking_id,
+      call_id: data.call_id,
+    },
+    "*",
+    tenantId,
+  );
 
   // If not scheduled, send immediately
   if (!data.scheduled_at) {
@@ -257,7 +262,8 @@ export async function getDefaultTemplate(
   type: NotificationType,
   channel: "email" | "sms",
 ): Promise<NotificationTemplate | null> {
-  const template = await queryOne<NotificationTemplate>(
+  const template = await tenantQueryOne<NotificationTemplate>(
+    tenantId,
     `SELECT * FROM notification_templates
      WHERE tenant_id = $1
        AND notification_type = $2
