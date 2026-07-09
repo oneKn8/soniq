@@ -96,28 +96,68 @@ export function rateLimit(config: Partial<RateLimitConfig> = {}) {
 }
 
 /**
+ * Extract the client IP from proxy headers, falling back to "unknown".
+ *
+ * SECURITY: the app is deployed behind a single trusted reverse proxy
+ * (nginx / Traefik). We must NOT trust the leftmost X-Forwarded-For entry, which
+ * the client fully controls and can rotate to evade per-IP limits. We prefer the
+ * proxy-set X-Real-IP, then fall back to the RIGHTMOST X-Forwarded-For entry (the
+ * hop appended by our own proxy). Direct (non-proxied) deployments should not
+ * expose this service to the internet without a proxy in front.
+ */
+export function getClientIp(c: Context): string {
+  const realIp = c.req.header("X-Real-IP");
+  if (realIp) return realIp.trim();
+
+  const forwardedFor = c.req.header("X-Forwarded-For");
+  if (forwardedFor) {
+    const parts = forwardedFor
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.length > 0) return parts[parts.length - 1];
+  }
+  return "unknown";
+}
+
+/**
+ * Imperative rate-limit check for use inside a handler, keyed on a caller-chosen
+ * string. Unlike the middleware, this lets a route key on a VALIDATED value (e.g.
+ * the body tenant_id after zod + existence checks) rather than a spoofable header.
+ * Returns whether the request is over the limit and the retry-after seconds.
+ */
+export function enforceRateLimit(
+  key: string,
+  max: number,
+  windowMs: number,
+): { limited: boolean; retryAfter: number; remaining: number } {
+  const now = Date.now();
+  let entry = store.get(key);
+  if (!entry || entry.resetAt <= now) {
+    entry = { count: 0, resetAt: now + windowMs };
+  }
+  entry.count++;
+  store.set(key, entry);
+  const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+  return {
+    limited: entry.count > max,
+    retryAfter,
+    remaining: Math.max(0, max - entry.count),
+  };
+}
+
+/**
  * Get client key for rate limiting
  * Uses IP address, with auth user ID if available
  */
-function getClientKey(c: Context): string {
-  // Try to get real IP from proxy headers
-  const forwardedFor = c.req.header("X-Forwarded-For");
-  const realIp = c.req.header("X-Real-IP");
-
-  let ip = "unknown";
-  if (forwardedFor) {
-    ip = forwardedFor.split(",")[0].trim();
-  } else if (realIp) {
-    ip = realIp;
-  }
-
+export function getClientKey(c: Context): string {
   // If authenticated, include user ID for more granular limiting
   const auth = c.get("auth");
   if (auth?.userId) {
     return `user:${auth.userId}`;
   }
 
-  return `ip:${ip}`;
+  return `ip:${getClientIp(c)}`;
 }
 
 /**
@@ -151,6 +191,27 @@ export function readRateLimit() {
     max: 120, // 120 requests per minute
   });
 }
+
+/**
+ * Per-IP rate limit for the anonymous chat widget send path.
+ * Keeps the expensive multi-provider LLM call bounded per client without
+ * requiring login. Keyed purely on IP (chat requests are unauthenticated).
+ */
+export function chatIpRateLimit(maxPerMinute: number = 20) {
+  return rateLimit({
+    windowMs: 60000,
+    max: maxPerMinute,
+    keyGenerator: (c) => `chat:ip:${getClientIp(c)}`,
+    message: "Too many chat requests, please slow down",
+  });
+}
+
+// NOTE: per-tenant chat limiting is enforced INSIDE the chat handler via
+// enforceRateLimit(`chat:tenant:${validatedTenantId}`, ...) using the body
+// tenant_id AFTER zod + existence validation. A middleware keyed on the
+// unvalidated X-Tenant-ID header was removed: it was bypassable by sending a
+// valid tenant in the body while rotating the header, so the per-tenant cap
+// never bound the tenant actually being billed for the LLM call.
 
 /**
  * Rate limit by tenant (for multi-tenant fair usage)

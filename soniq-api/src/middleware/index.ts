@@ -19,4 +19,10 @@ export {
   criticalRateLimit,
   readRateLimit,
   tenantRateLimit,
+  chatIpRateLimit,
+  enforceRateLimit,
+  getClientKey,
+  getClientIp,
 } from "./rate-limit.js";
+
+export { verifyTelephonyWebhook } from "./webhook-signature.js";

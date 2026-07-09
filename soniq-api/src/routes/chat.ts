@@ -3,8 +3,10 @@
 // Multi-provider fallback: Gemini -> GPT -> Groq
 
 import { Hono } from "hono";
+import type { Context, Next } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
+import { chatIpRateLimit, enforceRateLimit } from "../middleware/index.js";
 import { buildSystemPrompt } from "../services/gemini/chat.js";
 import {
   chatAgentFunctions,
@@ -30,22 +32,93 @@ import {
 
 export const chatRoutes = new Hono();
 
+// Max chat request body size. The LLM path only ever needs a small JSON
+// payload; anything larger is abuse. Enforced before JSON parsing.
+const MAX_CHAT_BODY_BYTES = 32 * 1024;
+
+/**
+ * Parse the global CHAT_ALLOWED_ORIGINS env allow-list (comma-separated).
+ * Empty list means "not configured" -> wildcard (embeddable widget default).
+ */
+function getGlobalAllowedOrigins(): string[] {
+  const raw = process.env.CHAT_ALLOWED_ORIGINS;
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Read a per-tenant allowed-origins list from the tenant record if such a field
+ * already exists (string[] or comma-separated string). Returns [] when absent,
+ * so enforcement is skipped gracefully with no schema dependency.
+ */
+function extractTenantAllowedOrigins(tenant: unknown): string[] {
+  if (!tenant || typeof tenant !== "object") return [];
+  const value = (tenant as Record<string, unknown>).allowed_origins;
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === "string" && v.length > 0);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((o) => o.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
 // CORS for embeddable widget - wildcard is intentional since the chat widget
 // is embedded on customer websites across different domains.
-// Configure CHAT_ALLOWED_ORIGINS to restrict if needed.
+// Configure CHAT_ALLOWED_ORIGINS to restrict if needed. When it is set, a
+// disallowed origin gets no CORS header (browser blocks) AND the send path
+// returns 403 (see chatGuards below).
 chatRoutes.use(
   "/*",
   cors({
     origin: (origin) => {
-      const allowedOrigins = process.env.CHAT_ALLOWED_ORIGINS;
-      if (!allowedOrigins) return origin; // Allow all for embeddable widget
-      const allowed = allowedOrigins.split(",").map((o) => o.trim());
-      return allowed.includes(origin || "") ? origin : allowed[0];
+      const allowed = getGlobalAllowedOrigins();
+      if (allowed.length === 0) return origin; // Allow all for embeddable widget
+      return allowed.includes(origin || "") ? origin : null;
     },
     allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "X-Tenant-ID"],
   }),
 );
+
+/**
+ * Abuse guards for the anonymous chat send path (no login required):
+ *  - body-size cap (413) before any JSON parse / LLM call
+ *  - global origin allow-list enforcement (403) when configured
+ * Per-IP and per-tenant rate limits are applied as separate middleware, and
+ * per-tenant origin enforcement happens in the handler once the tenant loads.
+ */
+async function chatGuards(c: Context, next: Next) {
+  // Require an accurate Content-Length so the body size is bounded BEFORE we
+  // buffer it. A chunked request (no Content-Length) could otherwise stream an
+  // arbitrarily large body into memory before the post-read cap rejects it.
+  const clHeader = c.req.header("content-length");
+  if (!clHeader) {
+    return c.json({ error: "Length Required" }, 411);
+  }
+  const len = Number(clHeader);
+  if (!Number.isFinite(len) || len > MAX_CHAT_BODY_BYTES) {
+    return c.json({ error: "Payload too large" }, 413);
+  }
+
+  const allowed = getGlobalAllowedOrigins();
+  if (allowed.length > 0) {
+    const origin = c.req.header("Origin");
+    // Only enforce when an Origin header is present (browser requests). Non-
+    // browser clients without an Origin are still bounded by rate limits.
+    if (origin && !allowed.includes(origin)) {
+      return c.json({ error: "Origin not allowed" }, 403);
+    }
+  }
+
+  return next();
+}
 
 // ============================================================================
 // POST /api/chat - Send a message
@@ -113,9 +186,23 @@ const chatRequestSchema = z.object({
   marketing_mode: z.boolean().optional(),
 });
 
-chatRoutes.post("/", async (c) => {
+chatRoutes.post(
+  "/",
+  chatGuards,
+  chatIpRateLimit(20),
+  async (c) => {
   try {
-    const rawBody = await c.req.json();
+    // Defensive: cap body size after read too (Content-Length can be spoofed).
+    const rawText = await c.req.text();
+    if (rawText.length > MAX_CHAT_BODY_BYTES) {
+      return c.json({ error: "Payload too large" }, 413);
+    }
+    let rawBody: unknown;
+    try {
+      rawBody = JSON.parse(rawText);
+    } catch {
+      return c.json({ error: "Invalid JSON body" }, 400);
+    }
     const parsed = chatRequestSchema.safeParse(rawBody);
 
     if (!parsed.success) {
@@ -130,6 +217,34 @@ chatRoutes.post("/", async (c) => {
     const tenant = await getTenantById(tenant_id);
     if (!tenant) {
       return c.json({ error: "Invalid tenant" }, 404);
+    }
+
+    // Per-tenant abuse cap, keyed on the VALIDATED body tenant_id (not the
+    // spoofable X-Tenant-ID header) and only after the tenant is confirmed to
+    // exist. This is what actually bounds LLM cost per real tenant.
+    const tenantLimit = enforceRateLimit(`chat:tenant:${tenant_id}`, 120, 60000);
+    if (tenantLimit.limited) {
+      c.header("Retry-After", String(tenantLimit.retryAfter));
+      return c.json(
+        {
+          error: "Too Many Requests",
+          message:
+            "This assistant is receiving too many requests, please try later",
+          retryAfter: tenantLimit.retryAfter,
+        },
+        429,
+      );
+    }
+
+    // Per-tenant origin allow-list enforcement, where the tenant record carries
+    // one. No schema change is required: we only read a field if it already
+    // exists, and skip enforcement gracefully when it is absent.
+    const tenantOrigins = extractTenantAllowedOrigins(tenant);
+    if (tenantOrigins.length > 0) {
+      const origin = c.req.header("Origin");
+      if (origin && !tenantOrigins.includes(origin)) {
+        return c.json({ error: "Origin not allowed for this tenant" }, 403);
+      }
     }
 
     // Get or create session (ensures session exists for history operations)
@@ -217,7 +332,8 @@ chatRoutes.post("/", async (c) => {
       500,
     );
   }
-});
+  },
+);
 
 // ============================================================================
 // GET /api/chat/config/:tenant_id - Get widget configuration
