@@ -63,8 +63,8 @@ async function refreshCache(): Promise<void> {
     // Also key by tenant ID for other lookups
     tenantCache.set(`id:${tenant.id}`, tenant);
     // Key by provider phone number ID for direct webhook lookup
-    if (tenant.vapi_phone_number_id) {
-      providerPhoneIdCache.set(tenant.vapi_phone_number_id, tenant);
+    if (tenant.provider_phone_id) {
+      providerPhoneIdCache.set(tenant.provider_phone_id, tenant);
     }
   }
 
