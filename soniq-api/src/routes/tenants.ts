@@ -156,10 +156,10 @@ tenantsRoutes.post("/", async (c) => {
   const userId = getAuthUserId(c);
 
   // Validate required fields
-  if (!body.business_name || !body.phone_number || !body.industry) {
+  if (!body.business_name || !body.phone_number) {
     return c.json(
       {
-        error: "Missing required fields: business_name, phone_number, industry",
+        error: "Missing required fields: business_name, phone_number",
       },
       400,
     );
@@ -180,7 +180,7 @@ tenantsRoutes.post("/", async (c) => {
     const tenant = {
       business_name: body.business_name,
       phone_number: body.phone_number,
-      industry: body.industry,
+      industry: body.industry || "general",
       agent_name: body.agent_name || "AI Assistant",
       agent_personality: body.agent_personality || {
         tone: "professional",
@@ -320,19 +320,8 @@ tenantsRoutes.put("/:id", async (c) => {
     delete body.created_at;
     delete body.phone_number; // Phone number changes need special handling
 
-    // Validate industry if provided
-    const VALID_INDUSTRIES = [
-      "hotel",
-      "motel",
-      "restaurant",
-      "medical",
-      "dental",
-      "salon",
-      "auto_service",
-    ];
-    if (body.industry && !VALID_INDUSTRIES.includes(body.industry)) {
-      return c.json({ error: "Invalid industry type" }, 400);
-    }
+    // The industry column stays writable but is no longer validated or
+    // branched on in code (the platform is industry-neutral).
 
     body.updated_at = new Date().toISOString();
 
