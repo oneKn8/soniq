@@ -4,7 +4,6 @@ import { ConfigProvider, useConfig } from "@/context/ConfigContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { TenantProvider, useTenant } from "@/context/TenantContext";
-import { IndustryProvider } from "@/context/IndustryContext";
 import { EscalationProvider } from "@/context/EscalationContext";
 import Sidebar from "@/components/dashboard/Sidebar";
 import TopBar from "@/components/dashboard/TopBar";
@@ -128,11 +127,9 @@ export default function DashboardLayout({
       <AuthProvider>
         <TenantProvider>
           <ConfigProvider>
-            <IndustryProvider>
-              <EscalationProvider>
-                <DashboardContent>{children}</DashboardContent>
-              </EscalationProvider>
-            </IndustryProvider>
+            <EscalationProvider>
+              <DashboardContent>{children}</DashboardContent>
+            </EscalationProvider>
           </ConfigProvider>
         </TenantProvider>
       </AuthProvider>

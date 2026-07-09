@@ -17,22 +17,20 @@ import {
   Calendar,
   Bell,
   Package,
-  Headphones,
   AlertCircle,
   User,
   Target,
   CheckSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useIndustry } from "@/context/IndustryContext";
+import { useTerminology } from "@/lib/terminology";
 
 // Route mapping for navigation
 const VIEW_ROUTES: Record<
-  ViewType | "workstation" | "escalations" | "profile",
+  ViewType | "escalations" | "profile",
   string
 > = {
   dashboard: "/dashboard",
-  workstation: "/workstation",
   calls: "/calls",
   analytics: "/analytics",
   escalations: "/escalations",
@@ -51,7 +49,7 @@ const VIEW_ROUTES: Record<
 // ============================================================================
 
 interface NavItem {
-  id: ViewType | "workstation" | "escalations" | "profile";
+  id: ViewType | "escalations" | "profile";
   label: string;
   icon: React.ElementType;
   badge?: number;
@@ -67,7 +65,6 @@ function buildNavSections(dealPluralLabel: string): NavSection[] {
     {
       title: "Workspace",
       items: [
-        { id: "workstation", label: "Workstation", icon: Headphones },
         { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
         { id: "escalations", label: "Escalations", icon: AlertCircle },
       ],
@@ -108,7 +105,7 @@ export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const { config, uiState, setView, toggleSidebar, resetConfig } = useConfig();
-  const { dealPluralLabel } = useIndustry();
+  const { dealPluralLabel } = useTerminology();
   const { sidebarCollapsed } = uiState;
 
   const NAV_SECTIONS = React.useMemo(
