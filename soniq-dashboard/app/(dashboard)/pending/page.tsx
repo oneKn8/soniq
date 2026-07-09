@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTenant } from "@/context/TenantContext";
-import { useIndustry } from "@/context/IndustryContext";
+import { useTerminology } from "@/lib/terminology";
 import { get, put } from "@/lib/api/client";
 import { PendingBookingsList } from "@/components/pending";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -34,7 +34,7 @@ type FilterTab = "pending" | "all";
 
 export default function PendingBookingsPage() {
   const { currentTenant } = useTenant();
-  const { transactionLabel, transactionPluralLabel } = useIndustry();
+  const { transactionLabel, transactionPluralLabel } = useTerminology();
   const [bookings, setBookings] = useState<PendingBooking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
