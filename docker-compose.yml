@@ -24,12 +24,10 @@ services:
       - GROQ_CHAT_MODEL=${GROQ_CHAT_MODEL:-llama-3.1-8b-instant}
       - GROQ_TOOL_MODEL=${GROQ_TOOL_MODEL:-llama-3.3-70b-versatile}
       # Voice pipeline
-      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
       - CARTESIA_API_KEY=${CARTESIA_API_KEY}
       - SIGNALWIRE_PROJECT_ID=${SIGNALWIRE_PROJECT_ID}
       - SIGNALWIRE_API_TOKEN=${SIGNALWIRE_API_TOKEN}
       - SIGNALWIRE_SPACE_URL=${SIGNALWIRE_SPACE_URL}
-      - VOICE_PROVIDER=custom
       - BACKEND_URL=${BACKEND_URL:-http://localhost:3100}
       # Optional: Together AI for fine-tuned models
       - TOGETHER_API_KEY=${TOGETHER_API_KEY:-}
