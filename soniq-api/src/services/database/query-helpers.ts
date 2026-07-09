@@ -51,13 +51,39 @@ export function buildWhereClause(
 }
 
 /**
- * Build ORDER BY clause
+ * Sanitize a client-supplied ORDER BY column against an allow-list.
+ * Postgres cannot parameterize identifiers, so every sort column reaching a
+ * query string must be whitelisted at the call site. Any value not explicitly
+ * allowed falls back to a known-safe constant, so untrusted input can never be
+ * interpolated into SQL.
  */
+export function safeSortColumn(
+  requested: string | undefined,
+  allowed: ReadonlySet<string>,
+  fallback: string,
+): string {
+  if (requested && allowed.has(requested)) return requested;
+  return fallback;
+}
+
+/**
+ * Build ORDER BY clause.
+ *
+ * Last-resort defensive guard: even though callers are expected to whitelist
+ * `sortBy` (see safeSortColumn), reject anything that is not a bare SQL
+ * identifier (optionally schema/table-qualified) before interpolation. This
+ * makes SQL injection through ORDER BY impossible regardless of the call site.
+ */
+const SAFE_IDENTIFIER = /^[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)?$/i;
+
 export function buildOrderClause(
   sortBy: string,
   sortOrder: "asc" | "desc" = "asc",
 ): string {
   const direction = sortOrder === "desc" ? "DESC" : "ASC";
+  if (!SAFE_IDENTIFIER.test(sortBy)) {
+    throw new Error(`Invalid sort column: ${sortBy}`);
+  }
   return `ORDER BY ${sortBy} ${direction}`;
 }
 

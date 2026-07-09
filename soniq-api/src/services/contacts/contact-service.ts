@@ -8,6 +8,7 @@ import {
   updateMany,
   rpc,
   paginatedQuery,
+  safeSortColumn,
 } from "../database/query-helpers.js";
 import { contactCache } from "./contact-cache";
 import { normalizePhoneNumber } from "./phone-utils";
@@ -288,6 +289,22 @@ export async function lookupByEmail(
 // SEARCH
 // ============================================================================
 
+// Allowed columns for ORDER BY (prevents SQL injection via sort_by param)
+const CONTACT_SORT_COLUMNS = new Set([
+  "last_contact_at",
+  "created_at",
+  "updated_at",
+  "name",
+  "first_contact_at",
+  "last_booking_at",
+  "last_call_at",
+  "engagement_score",
+  "lifetime_value_cents",
+  "total_bookings",
+  "total_calls",
+  "status",
+]);
+
 /**
  * Search contacts with filters and pagination
  */
@@ -298,7 +315,11 @@ export async function searchContacts(
 ): Promise<PaginatedResult<Contact>> {
   const limit = pagination.limit || 20;
   const offset = pagination.offset || 0;
-  const sortBy = pagination.sort_by || "last_contact_at";
+  const sortBy = safeSortColumn(
+    pagination.sort_by,
+    CONTACT_SORT_COLUMNS,
+    "last_contact_at",
+  );
   const sortOrder = pagination.sort_order || "desc";
 
   // Build dynamic WHERE clause
