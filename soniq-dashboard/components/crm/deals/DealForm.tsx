@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/modal";
 import { createDeal, updateDeal } from "@/lib/api/deals";
 import type { Deal, DealStage, CreateDealInput } from "@/lib/api/deals";
-import { useIndustry } from "@/context/IndustryContext";
+import { useTerminology } from "@/lib/terminology";
 
 // ============================================================================
 // TYPES
@@ -48,7 +48,7 @@ export function DealForm({
   deal,
   onSuccess,
 }: DealFormProps) {
-  const { customerLabel, dealLabel, pipelineStages } = useIndustry();
+  const { customerLabel, dealLabel, pipelineStages } = useTerminology();
   const stageOptions = pipelineStages.map((s) => ({
     value: s.id,
     label: s.label,

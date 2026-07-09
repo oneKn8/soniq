@@ -8,7 +8,7 @@ import { DealCard } from "./DealCard";
 import { DealForm } from "./DealForm";
 import { getPipeline, updateDealStage } from "@/lib/api/deals";
 import type { Deal, DealStage, PipelineStage } from "@/lib/api/deals";
-import { useIndustry } from "@/context/IndustryContext";
+import { useTerminology } from "@/lib/terminology";
 import { cn } from "@/lib/utils";
 
 // ============================================================================
@@ -44,7 +44,7 @@ export default function DealsPage() {
     dealLabel,
     dealPluralLabel,
     pipelineStages,
-  } = useIndustry();
+  } = useTerminology();
 
   // Derive stage order and config from industry context
   const STAGE_ORDER = React.useMemo(

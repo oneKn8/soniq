@@ -14,7 +14,7 @@ import {
 import { ContactForm } from "./ContactForm";
 import { ContactDetail } from "./ContactDetail";
 import { useContacts } from "@/hooks/useContacts";
-import { useIndustry } from "@/context/IndustryContext";
+import { useTerminology } from "@/lib/terminology";
 import type { Contact, ContactStatus } from "@/types/crm";
 import { cn } from "@/lib/utils";
 
@@ -174,7 +174,7 @@ export default function ContactsPage() {
   } = useContacts();
 
   const { customerLabel, customerPluralLabel, transactionPluralLabel } =
-    useIndustry();
+    useTerminology();
 
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedContact, setSelectedContact] = React.useState<Contact | null>(
