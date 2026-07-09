@@ -101,30 +101,30 @@ async def create_booking(
 async def create_order(
     context: RunContext,
     customer_name: str,
-    order_type: str,
-    items: str,
+    request_summary: str,
+    fulfillment_type: str = "none",
     customer_phone: str = "",
-    delivery_address: str = "",
-    special_instructions: str = "",
+    fulfillment_address: str = "",
+    notes: str = "",
 ) -> str:
-    """Place a food order. Must have customer name, items, and order type
-    (pickup or delivery) before calling.
+    """Place an order or log a caller request. Must have the customer's name and
+    a summary of what they want before calling.
 
     Args:
-        customer_name: Customer's name for the order.
-        order_type: Must be 'pickup' or 'delivery'.
-        items: Comma-separated list of items.
+        customer_name: Customer's name for the request.
+        request_summary: What the caller wants (items, service, or request details).
+        fulfillment_type: One of 'pickup', 'delivery', 'onsite', or 'none' (default 'none').
         customer_phone: Phone number if different from caller ID.
-        delivery_address: Required for delivery orders.
-        special_instructions: Optional special requests.
+        fulfillment_address: Required only for delivery.
+        notes: Optional special instructions.
     """
     return await _call_tool(context, "create_order", {
         "customer_name": customer_name,
+        "request_summary": request_summary,
         "customer_phone": customer_phone,
-        "order_type": order_type,
-        "items": items,
-        "delivery_address": delivery_address,
-        "special_instructions": special_instructions,
+        "fulfillment_type": fulfillment_type,
+        "fulfillment_address": fulfillment_address,
+        "notes": notes,
     })
 
 
