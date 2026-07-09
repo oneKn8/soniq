@@ -9,7 +9,7 @@ import { get, post, put, patch, del } from "./client";
 // TYPES
 // ============================================================================
 
-// Industry-specific stages -- see industryPresets.ts for per-industry definitions
+// Deal stages -- see lib/terminology.ts for the universal pipeline definition
 export type DealStage = string;
 
 export interface Deal {
