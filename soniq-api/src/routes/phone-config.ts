@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { z } from "zod";
+import { parseJson } from "../lib/validate.js";
 import { queryOne } from "../services/database/client.js";
 import {
   insertOne,
@@ -138,13 +140,15 @@ phoneConfigRoutes.get("/config", async (c) => {
  * POST /api/phone/provision
  * Provision a new phone number
  */
-phoneConfigRoutes.post("/provision", async (c) => {
-  const body = await c.req.json();
-  const userId = getAuthUserId(c);
+const provisionSchema = z.object({
+  phoneNumber: z.string().min(1),
+});
 
-  if (!body.phoneNumber) {
-    return c.json({ error: "phoneNumber is required" }, 400);
-  }
+phoneConfigRoutes.post("/provision", async (c) => {
+  const parsed = await parseJson(c, provisionSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
+  const userId = getAuthUserId(c);
 
   try {
     // Get tenant
@@ -224,20 +228,20 @@ phoneConfigRoutes.post("/provision", async (c) => {
  * POST /api/phone/port
  * Submit a number port request
  */
-phoneConfigRoutes.post("/port", async (c) => {
-  const body = await c.req.json();
-  const userId = getAuthUserId(c);
+const portSchema = z.object({
+  phone_number: z.string().min(1),
+  current_carrier: z.string().min(1),
+  authorized_name: z.string().min(1),
+  account_number: z.string().optional(),
+  pin: z.string().optional(),
+  use_temp_number: z.boolean().optional(),
+});
 
-  // Validate required fields
-  if (!body.phone_number || !body.current_carrier || !body.authorized_name) {
-    return c.json(
-      {
-        error:
-          "phone_number, current_carrier, and authorized_name are required",
-      },
-      400,
-    );
-  }
+phoneConfigRoutes.post("/port", async (c) => {
+  const parsed = await parseJson(c, portSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
+  const userId = getAuthUserId(c);
 
   try {
     // Get tenant
@@ -390,13 +394,15 @@ phoneConfigRoutes.get("/port/:id/status", async (c) => {
  * POST /api/phone/forward
  * Set up call forwarding
  */
-phoneConfigRoutes.post("/forward", async (c) => {
-  const body = await c.req.json();
-  const userId = getAuthUserId(c);
+const forwardSchema = z.object({
+  business_number: z.string().min(1),
+});
 
-  if (!body.business_number) {
-    return c.json({ error: "business_number is required" }, 400);
-  }
+phoneConfigRoutes.post("/forward", async (c) => {
+  const parsed = await parseJson(c, forwardSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
+  const userId = getAuthUserId(c);
 
   try {
     // Get tenant

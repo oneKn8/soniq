@@ -1,13 +1,31 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import {
   queryOne,
   queryAll,
   transaction,
 } from "../services/database/client.js";
 import { getAuthUserId } from "../middleware/index.js";
+import { parseJson } from "../lib/validate.js";
 import type { PoolClient } from "pg";
 
 export const capabilitiesRoutes = new Hono();
+
+const updateCapabilitiesSchema = z.object({
+  capabilities: z.array(
+    z
+      .object({
+        capability: z.string().min(1),
+        config: z.record(z.unknown()).optional(),
+      })
+      .passthrough(),
+  ),
+});
+
+const updateCapabilitySchema = z.object({
+  config: z.record(z.unknown()).optional(),
+  is_enabled: z.boolean().optional(),
+});
 
 /** Type definitions for database rows */
 interface MembershipRow {
@@ -133,12 +151,10 @@ capabilitiesRoutes.get("/", async (c) => {
  * Updates tenant's capabilities
  */
 capabilitiesRoutes.put("/", async (c) => {
-  const body = await c.req.json();
+  const parsed = await parseJson(c, updateCapabilitiesSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
   const userId = getAuthUserId(c);
-
-  if (!body.capabilities || !Array.isArray(body.capabilities)) {
-    return c.json({ error: "capabilities array is required" }, 400);
-  }
 
   try {
     // Get tenant (must be owner or admin)
@@ -201,7 +217,9 @@ capabilitiesRoutes.put("/", async (c) => {
  */
 capabilitiesRoutes.put("/:capability", async (c) => {
   const capability = c.req.param("capability");
-  const body = await c.req.json();
+  const parsed = await parseJson(c, updateCapabilitySchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
   const userId = getAuthUserId(c);
 
   try {

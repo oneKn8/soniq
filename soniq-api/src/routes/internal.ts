@@ -4,6 +4,8 @@
 
 import { Hono } from "hono";
 import type { Context, Next } from "hono";
+import { z } from "zod";
+import { parseJson } from "../lib/validate.js";
 import { getTenantByPhoneWithFallback } from "../services/database/tenant-cache.js";
 import { buildSystemPrompt } from "../services/gemini/chat.js";
 import { executeTool } from "../services/gemini/tools.js";
@@ -113,22 +115,26 @@ internalRoutes.get("/tenants/by-phone/:phone", async (c) => {
   });
 });
 
+const voiceToolSchema = z.object({
+  tenant_id: z.string().min(1),
+  call_sid: z.string().optional(),
+  caller_phone: z.string().optional(),
+  escalation_phone: z.string().optional(),
+  args: z.record(z.unknown()).optional(),
+});
+
 // POST /internal/voice-tools/:action
 // Routes tool calls from the Python agent to existing tool execution functions
 internalRoutes.post("/voice-tools/:action", async (c) => {
   const action = c.req.param("action");
 
-  const body = await c.req.json<{
-    tenant_id: string;
-    call_sid: string;
-    caller_phone?: string;
-    escalation_phone?: string;
-    args: Record<string, unknown>;
-  }>();
-
-  if (!body.tenant_id || !action) {
-    return c.json({ error: "tenant_id and action are required" }, 400);
+  if (!action) {
+    return c.json({ error: "action is required" }, 400);
   }
+
+  const parsed = await parseJson(c, voiceToolSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
 
   const context: ToolExecutionContext = {
     tenantId: body.tenant_id,
@@ -166,33 +172,36 @@ function mapCallStatus(status: string | undefined): DbCallStatus {
   }
 }
 
+const callLogSchema = z.object({
+  tenant_id: z.string().min(1),
+  call_sid: z.string().min(1),
+  caller_phone: z.string().optional(),
+  caller_name: z.string().optional(),
+  direction: z.enum(["inbound", "outbound"]).optional(),
+  // status stays a loose string; it is normalized by mapCallStatus.
+  status: z.string().optional(),
+  started_at: z.string(),
+  ended_at: z.string(),
+  duration_seconds: z.coerce.number().nonnegative(),
+  ended_reason: z.string().optional(),
+  outcome_type: z
+    .enum(["booking", "inquiry", "support", "escalation", "hangup"])
+    .optional(),
+  outcome_success: z.boolean().optional(),
+  transcript: z.string().optional(),
+  summary: z.string().optional(),
+  sentiment_score: z.coerce.number().optional(),
+  intents_detected: z.array(z.string()).optional(),
+  recording_url: z.string().optional(),
+  cost_cents: z.coerce.number().optional(),
+});
+
 // POST /internal/calls/log
 // Saves a call record from the Python agent
 internalRoutes.post("/calls/log", async (c) => {
-  const body = await c.req.json<{
-    tenant_id: string;
-    call_sid: string;
-    caller_phone?: string;
-    caller_name?: string;
-    direction?: "inbound" | "outbound";
-    status?: string;
-    started_at: string;
-    ended_at: string;
-    duration_seconds: number;
-    ended_reason?: string;
-    outcome_type?: "booking" | "inquiry" | "support" | "escalation" | "hangup";
-    outcome_success?: boolean;
-    transcript?: string;
-    summary?: string;
-    sentiment_score?: number;
-    intents_detected?: string[];
-    recording_url?: string;
-    cost_cents?: number;
-  }>();
-
-  if (!body.tenant_id || !body.call_sid) {
-    return c.json({ error: "tenant_id and call_sid are required" }, 400);
-  }
+  const parsed = await parseJson(c, callLogSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
 
   try {
     // Auto-create or find contact by caller phone

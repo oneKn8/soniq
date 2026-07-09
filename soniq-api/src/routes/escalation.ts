@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import {
   queryOne,
   queryAll,
@@ -10,10 +11,50 @@ import {
   deleteRows,
 } from "../services/database/query-helpers.js";
 import { getAuthUserId } from "../middleware/index.js";
+import { parseJson } from "../lib/validate.js";
 import { invalidateTenant } from "../services/database/tenant-cache.js";
 import type { PoolClient } from "pg";
 
 export const escalationRoutes = new Hono();
+
+const scheduleCallbackSchema = z
+  .object({ assigned_to: z.string().optional() })
+  .passthrough();
+
+const createContactSchema = z
+  .object({
+    name: z.string().min(1),
+    phone: z.string().min(1),
+    role: z.string().optional(),
+    is_primary: z.boolean().optional(),
+    availability: z.string().optional(),
+    availability_hours: z.unknown().optional(),
+  })
+  .passthrough();
+
+const updateContactSchema = z
+  .object({
+    name: z.string().optional(),
+    phone: z.string().optional(),
+    role: z.string().nullable().optional(),
+    is_primary: z.boolean().optional(),
+    availability: z.string().optional(),
+    availability_hours: z.unknown().optional(),
+    sort_order: z.number().optional(),
+  })
+  .passthrough();
+
+const updateTriggersSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    triggers: z.unknown().optional(),
+    transfer_behavior: z.unknown().optional(),
+  })
+  .passthrough();
+
+const reorderSchema = z.object({
+  order: z.array(z.string()),
+});
 
 /** Type definitions for database rows */
 interface MembershipRow {
@@ -466,7 +507,9 @@ escalationRoutes.put("/queue/:id/resolve", async (c) => {
  */
 escalationRoutes.put("/queue/:id/schedule-callback", async (c) => {
   const id = c.req.param("id");
-  const body = await c.req.json();
+  const parsed = await parseJson(c, scheduleCallbackSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
   const userId = getAuthUserId(c);
 
   try {
@@ -564,12 +607,10 @@ escalationRoutes.get("/contacts", async (c) => {
  * Add an escalation contact
  */
 escalationRoutes.post("/contacts", async (c) => {
-  const body = await c.req.json();
+  const parsed = await parseJson(c, createContactSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
   const userId = getAuthUserId(c);
-
-  if (!body.name || !body.phone) {
-    return c.json({ error: "name and phone are required" }, 400);
-  }
 
   try {
     // Get tenant
@@ -643,7 +684,9 @@ escalationRoutes.post("/contacts", async (c) => {
  */
 escalationRoutes.put("/contacts/:id", async (c) => {
   const id = c.req.param("id");
-  const body = await c.req.json();
+  const parsed = await parseJson(c, updateContactSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
   const userId = getAuthUserId(c);
 
   try {
@@ -891,7 +934,9 @@ escalationRoutes.get("/triggers", async (c) => {
  * Update escalation triggers and behavior
  */
 escalationRoutes.put("/triggers", async (c) => {
-  const body = await c.req.json();
+  const parsed = await parseJson(c, updateTriggersSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
   const userId = getAuthUserId(c);
 
   try {
@@ -940,12 +985,10 @@ escalationRoutes.put("/triggers", async (c) => {
  * Reorder escalation contacts
  */
 escalationRoutes.post("/contacts/reorder", async (c) => {
-  const body = await c.req.json();
+  const parsed = await parseJson(c, reorderSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
   const userId = getAuthUserId(c);
-
-  if (!body.order || !Array.isArray(body.order)) {
-    return c.json({ error: "order array is required" }, 400);
-  }
 
   try {
     // Get tenant
