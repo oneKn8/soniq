@@ -7,9 +7,8 @@ export interface Tenant {
 
   // Identity
   business_name: string;
-  industry: string;
   phone_number: string; // SignalWire phone number assigned to this tenant
-  vapi_phone_number_id?: string; // Provider phone number ID for direct webhook lookup (DB column name retained)
+  provider_phone_id?: string; // Provider phone number ID for direct webhook lookup
 
   // Agent configuration
   agent_name: string;
@@ -85,7 +84,7 @@ export interface Call {
 
   // References
   tenant_id: string;
-  vapi_call_id: string; // Actually SignalWire call SID (legacy column name)
+  provider_call_id: string; // Provider call identifier (e.g. SignalWire call SID)
   contact_id?: string; // CRM contact reference
 
   // Call details

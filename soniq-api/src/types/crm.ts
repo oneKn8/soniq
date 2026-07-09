@@ -740,7 +740,7 @@ export interface CallWithCRM {
 
   // References
   tenant_id: string;
-  vapi_call_id: string; // SignalWire call SID (legacy column name)
+  provider_call_id: string; // Provider call identifier (e.g. SignalWire call SID)
   contact_id?: string;
 
   // Call details
