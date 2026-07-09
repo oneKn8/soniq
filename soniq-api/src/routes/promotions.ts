@@ -8,6 +8,7 @@ import {
 } from "../services/database/query-helpers.js";
 import { getAuthUserId } from "../middleware/index.js";
 import { parseJson } from "../lib/validate.js";
+import { logger } from "../lib/logger.js";
 
 export const promotionsRoutes = new Hono();
 
@@ -98,7 +99,7 @@ promotionsRoutes.get("/", async (c) => {
 
     return c.json({ promotions: promotions || [] });
   } catch (error) {
-    console.error("[PROMOTIONS] Error fetching promotions:", error);
+    logger.error({ error }, "[PROMOTIONS] Error fetching promotions:");
     return c.json({ error: "Failed to fetch promotions" }, 500);
   }
 });
@@ -143,7 +144,7 @@ promotionsRoutes.post("/", async (c) => {
 
     return c.json(promotion, 201);
   } catch (error) {
-    console.error("[PROMOTIONS] Error creating promotion:", error);
+    logger.error({ error }, "[PROMOTIONS] Error creating promotion:");
     return c.json({ error: "Failed to create promotion" }, 500);
   }
 });
@@ -188,7 +189,7 @@ promotionsRoutes.get("/:id", async (c) => {
 
     return c.json(promotion);
   } catch (error) {
-    console.error("[PROMOTIONS] Error fetching promotion:", error);
+    logger.error({ error }, "[PROMOTIONS] Error fetching promotion:");
     return c.json({ error: "Failed to fetch promotion" }, 500);
   }
 });
@@ -251,7 +252,7 @@ promotionsRoutes.put("/:id", async (c) => {
 
     return c.json(promotion);
   } catch (error) {
-    console.error("[PROMOTIONS] Error updating promotion:", error);
+    logger.error({ error }, "[PROMOTIONS] Error updating promotion:");
     return c.json({ error: "Failed to update promotion" }, 500);
   }
 });
@@ -299,7 +300,7 @@ promotionsRoutes.delete("/:id", async (c) => {
 
     return c.json({ success: true });
   } catch (error) {
-    console.error("[PROMOTIONS] Error deleting promotion:", error);
+    logger.error({ error }, "[PROMOTIONS] Error deleting promotion:");
     return c.json({ error: "Failed to delete promotion" }, 500);
   }
 });
@@ -354,7 +355,7 @@ promotionsRoutes.post("/:id/toggle", async (c) => {
 
     return c.json(promotion);
   } catch (error) {
-    console.error("[PROMOTIONS] Error toggling promotion:", error);
+    logger.error({ error }, "[PROMOTIONS] Error toggling promotion:");
     return c.json({ error: "Failed to toggle promotion" }, 500);
   }
 });

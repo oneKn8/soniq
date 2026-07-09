@@ -11,6 +11,7 @@ import { invalidateTenant } from "../services/database/tenant-cache.js";
 import type { SetupStep } from "../types/database.js";
 import type { PoolClient } from "pg";
 import { z } from "zod";
+import { logger } from "../lib/logger.js";
 
 export const setupRoutes = new Hono();
 
@@ -239,7 +240,7 @@ setupRoutes.get("/progress", async (c) => {
       },
     });
   } catch (error) {
-    console.error("[SETUP] Error fetching progress:", error);
+    logger.error({ error }, "[SETUP] Error fetching progress:");
     return c.json({ error: "Failed to fetch setup progress" }, 500);
   }
 });
@@ -550,7 +551,7 @@ setupRoutes.put("/step/:step", async (c) => {
       nextStep: getNextStep(step),
     });
   } catch (error) {
-    console.error("[SETUP] Error saving step:", error);
+    logger.error({ error }, "[SETUP] Error saving step:");
     return c.json({ error: "Failed to save setup step" }, 500);
   }
 });
@@ -631,7 +632,7 @@ setupRoutes.post("/complete", async (c) => {
       tenantId,
     });
   } catch (error) {
-    console.error("[SETUP] Error completing setup:", error);
+    logger.error({ error }, "[SETUP] Error completing setup:");
     return c.json({ error: "Failed to complete setup" }, 500);
   }
 });
@@ -682,7 +683,7 @@ setupRoutes.post("/go-back", async (c) => {
 
     return c.json({ success: true, step: targetStep });
   } catch (error) {
-    console.error("[SETUP] Error going back:", error);
+    logger.error({ error }, "[SETUP] Error going back:");
     return c.json({ error: "Failed to navigate back" }, 500);
   }
 });

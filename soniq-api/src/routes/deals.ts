@@ -15,6 +15,7 @@ import {
 import { DealFilters, PaginationParams } from "../types/crm.js";
 import { getAuthTenantId } from "../middleware/index.js";
 import { getStages } from "../config/universal-pipeline.js";
+import { logger } from "../lib/logger.js";
 
 export const dealsRoutes = new Hono();
 
@@ -99,7 +100,7 @@ dealsRoutes.get("/", async (c) => {
     if (message.includes("X-Tenant-ID")) {
       return c.json({ error: message }, 400);
     }
-    console.error("[DEALS] List error:", message);
+    logger.error({ message }, "[DEALS] List error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -121,7 +122,7 @@ dealsRoutes.get("/pipeline", async (c) => {
     return c.json({ stages: pipeline });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[DEALS] Pipeline error:", message);
+    logger.error({ message }, "[DEALS] Pipeline error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -148,7 +149,7 @@ dealsRoutes.get("/:id", async (c) => {
     return c.json(deal);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[DEALS] Get error:", message);
+    logger.error({ message }, "[DEALS] Get error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -189,7 +190,7 @@ dealsRoutes.post("/", async (c) => {
     return c.json(deal, 201);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[DEALS] Create error:", message);
+    logger.error({ message }, "[DEALS] Create error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -231,7 +232,7 @@ dealsRoutes.put("/:id", async (c) => {
     if (message.includes("not found")) {
       return c.json({ error: message }, 404);
     }
-    console.error("[DEALS] Update error:", message);
+    logger.error({ message }, "[DEALS] Update error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -281,7 +282,7 @@ dealsRoutes.patch("/:id/stage", async (c) => {
     if (message.includes("not found")) {
       return c.json({ error: message }, 404);
     }
-    console.error("[DEALS] Stage update error:", message);
+    logger.error({ message }, "[DEALS] Stage update error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -303,7 +304,7 @@ dealsRoutes.delete("/:id", async (c) => {
     if (message.includes("not found")) {
       return c.json({ error: message }, 404);
     }
-    console.error("[DEALS] Archive error:", message);
+    logger.error({ message }, "[DEALS] Archive error:");
     return c.json({ error: message }, 500);
   }
 });

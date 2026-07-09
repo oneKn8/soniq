@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { queryOne, queryAll } from "../services/database/client.js";
 import { getAuthTenantId } from "../middleware/index.js";
+import { logger } from "../lib/logger.js";
 
 export const dashboardRoutes = new Hono();
 
@@ -139,7 +140,7 @@ dashboardRoutes.get("/metrics", async (c) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("[DASHBOARD] Metrics error:", error);
+    logger.error({ error }, "[DASHBOARD] Metrics error:");
     const message = error instanceof Error ? error.message : "Unknown error";
     return c.json({ error: message }, 500);
   }
@@ -252,7 +253,7 @@ dashboardRoutes.get("/stats", async (c) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("[DASHBOARD] Stats error:", error);
+    logger.error({ error }, "[DASHBOARD] Stats error:");
     const message = error instanceof Error ? error.message : "Unknown error";
     return c.json({ error: message }, 500);
   }

@@ -9,6 +9,7 @@ import { invalidateTenant } from "../services/database/tenant-cache.js";
 import { getAuthTenantId, getAuthUserId } from "../middleware/index.js";
 import { parseJson } from "../lib/validate.js";
 import { z } from "zod";
+import { logger } from "../lib/logger.js";
 
 export const tenantsRoutes = new Hono();
 
@@ -100,7 +101,7 @@ tenantsRoutes.get("/", async (c) => {
 
     return c.json({ tenants });
   } catch (err) {
-    console.error("[tenants] GET / error:", err);
+    logger.error({ err }, "[tenants] GET / error:");
     return c.json(
       { error: err instanceof Error ? err.message : "Database error" },
       500,
@@ -127,7 +128,7 @@ tenantsRoutes.get("/current", async (c) => {
 
     return c.json(data);
   } catch (err) {
-    console.error("[tenants] GET /current error:", err);
+    logger.error({ err }, "[tenants] GET /current error:");
     return c.json({ error: "Tenant not found" }, 404);
   }
 });
@@ -163,7 +164,7 @@ tenantsRoutes.get("/:id", async (c) => {
 
     return c.json({ ...data, userRole: membership.role });
   } catch (err) {
-    console.error("[tenants] GET /:id error:", err);
+    logger.error({ err }, "[tenants] GET /:id error:");
     return c.json(
       { error: err instanceof Error ? err.message : "Database error" },
       500,
@@ -302,7 +303,7 @@ tenantsRoutes.post("/", async (c) => {
 
     return c.json(tenantData, 201);
   } catch (err) {
-    console.error("[tenants] POST / error:", err);
+    logger.error({ err }, "[tenants] POST / error:");
     return c.json(
       { error: err instanceof Error ? err.message : "Database error" },
       500,
@@ -354,7 +355,7 @@ tenantsRoutes.put("/:id", async (c) => {
 
     return c.json(data);
   } catch (err) {
-    console.error("[tenants] PUT /:id error:", err);
+    logger.error({ err }, "[tenants] PUT /:id error:");
     return c.json(
       { error: err instanceof Error ? err.message : "Database error" },
       500,
@@ -396,7 +397,7 @@ tenantsRoutes.delete("/:id", async (c) => {
 
     return c.json({ success: true });
   } catch (err) {
-    console.error("[tenants] DELETE /:id error:", err);
+    logger.error({ err }, "[tenants] DELETE /:id error:");
     return c.json(
       { error: err instanceof Error ? err.message : "Database error" },
       500,
@@ -470,7 +471,7 @@ tenantsRoutes.put("/:id/phone", async (c) => {
 
     return c.json(data);
   } catch (err) {
-    console.error("[tenants] PUT /:id/phone error:", err);
+    logger.error({ err }, "[tenants] PUT /:id/phone error:");
     return c.json(
       { error: err instanceof Error ? err.message : "Database error" },
       500,
@@ -517,7 +518,7 @@ tenantsRoutes.post("/:id/members", async (c) => {
 
     return c.json(data, 201);
   } catch (err) {
-    console.error("[tenants] POST /:id/members error:", err);
+    logger.error({ err }, "[tenants] POST /:id/members error:");
 
     // Check for unique constraint violation (user already a member)
     const pgError = err as { code?: string };
@@ -566,7 +567,7 @@ tenantsRoutes.get("/:id/members", async (c) => {
 
     return c.json({ members: data });
   } catch (err) {
-    console.error("[tenants] GET /:id/members error:", err);
+    logger.error({ err }, "[tenants] GET /:id/members error:");
     return c.json(
       { error: err instanceof Error ? err.message : "Database error" },
       500,
@@ -633,7 +634,7 @@ tenantsRoutes.delete("/:id/members/:memberId", async (c) => {
 
     return c.json({ success: true });
   } catch (err) {
-    console.error("[tenants] DELETE /:id/members/:memberId error:", err);
+    logger.error({ err }, "[tenants] DELETE /:id/members/:memberId error:");
     return c.json(
       { error: err instanceof Error ? err.message : "Database error" },
       500,

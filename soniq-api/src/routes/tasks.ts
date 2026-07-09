@@ -16,6 +16,7 @@ import {
 } from "../services/tasks/task-service.js";
 import { TaskFilters, PaginationParams } from "../types/crm.js";
 import { getAuthTenantId } from "../middleware/index.js";
+import { logger } from "../lib/logger.js";
 
 export const tasksRoutes = new Hono();
 
@@ -102,7 +103,7 @@ tasksRoutes.get("/", async (c) => {
     if (message.includes("X-Tenant-ID")) {
       return c.json({ error: message }, 400);
     }
-    console.error("[TASKS] List error:", message);
+    logger.error({ message }, "[TASKS] List error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -124,7 +125,7 @@ tasksRoutes.get("/counts", async (c) => {
     return c.json(counts);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[TASKS] Counts error:", message);
+    logger.error({ message }, "[TASKS] Counts error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -145,7 +146,7 @@ tasksRoutes.get("/upcoming", async (c) => {
     return c.json({ data: tasks, count: tasks.length });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[TASKS] Upcoming error:", message);
+    logger.error({ message }, "[TASKS] Upcoming error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -163,7 +164,7 @@ tasksRoutes.get("/overdue", async (c) => {
     return c.json({ data: tasks, count: tasks.length });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[TASKS] Overdue error:", message);
+    logger.error({ message }, "[TASKS] Overdue error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -190,7 +191,7 @@ tasksRoutes.get("/:id", async (c) => {
     return c.json(task);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[TASKS] Get error:", message);
+    logger.error({ message }, "[TASKS] Get error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -233,7 +234,7 @@ tasksRoutes.post("/", async (c) => {
     return c.json(task, 201);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[TASKS] Create error:", message);
+    logger.error({ message }, "[TASKS] Create error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -277,7 +278,7 @@ tasksRoutes.put("/:id", async (c) => {
     if (message.includes("not found")) {
       return c.json({ error: message }, 404);
     }
-    console.error("[TASKS] Update error:", message);
+    logger.error({ message }, "[TASKS] Update error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -299,7 +300,7 @@ tasksRoutes.patch("/:id/complete", async (c) => {
     if (message.includes("not found")) {
       return c.json({ error: message }, 404);
     }
-    console.error("[TASKS] Complete error:", message);
+    logger.error({ message }, "[TASKS] Complete error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -321,7 +322,7 @@ tasksRoutes.delete("/:id", async (c) => {
     if (message.includes("not found")) {
       return c.json({ error: message }, 404);
     }
-    console.error("[TASKS] Delete error:", message);
+    logger.error({ message }, "[TASKS] Delete error:");
     return c.json({ error: message }, 500);
   }
 });

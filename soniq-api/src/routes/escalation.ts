@@ -14,6 +14,7 @@ import { getAuthUserId } from "../middleware/index.js";
 import { parseJson } from "../lib/validate.js";
 import { invalidateTenant } from "../services/database/tenant-cache.js";
 import type { PoolClient } from "pg";
+import { logger } from "../lib/logger.js";
 
 export const escalationRoutes = new Hono();
 
@@ -393,7 +394,7 @@ escalationRoutes.get("/queue", async (c) => {
 
     return c.json({ queue });
   } catch (error) {
-    console.error("[ESCALATION] Error fetching queue:", error);
+    logger.error({ error }, "[ESCALATION] Error fetching queue:");
     return c.json({ error: "Failed to fetch escalation queue" }, 500);
   }
 });
@@ -445,7 +446,7 @@ escalationRoutes.put("/queue/:id/take", async (c) => {
 
     return c.json({ success: true });
   } catch (error) {
-    console.error("[ESCALATION] Error taking queue item:", error);
+    logger.error({ error }, "[ESCALATION] Error taking queue item:");
     return c.json({ error: "Failed to update queue item" }, 500);
   }
 });
@@ -496,7 +497,7 @@ escalationRoutes.put("/queue/:id/resolve", async (c) => {
 
     return c.json({ success: true });
   } catch (error) {
-    console.error("[ESCALATION] Error resolving queue item:", error);
+    logger.error({ error }, "[ESCALATION] Error resolving queue item:");
     return c.json({ error: "Failed to resolve queue item" }, 500);
   }
 });
@@ -557,7 +558,7 @@ escalationRoutes.put("/queue/:id/schedule-callback", async (c) => {
 
     return c.json({ success: true });
   } catch (error) {
-    console.error("[ESCALATION] Error scheduling callback:", error);
+    logger.error({ error }, "[ESCALATION] Error scheduling callback:");
     return c.json({ error: "Failed to schedule callback" }, 500);
   }
 });
@@ -597,7 +598,7 @@ escalationRoutes.get("/contacts", async (c) => {
 
     return c.json({ contacts: contacts || [] });
   } catch (error) {
-    console.error("[ESCALATION] Error fetching contacts:", error);
+    logger.error({ error }, "[ESCALATION] Error fetching contacts:");
     return c.json({ error: "Failed to fetch escalation contacts" }, 500);
   }
 });
@@ -673,7 +674,7 @@ escalationRoutes.post("/contacts", async (c) => {
 
     return c.json(contact, 201);
   } catch (error) {
-    console.error("[ESCALATION] Error adding contact:", error);
+    logger.error({ error }, "[ESCALATION] Error adding contact:");
     return c.json({ error: "Failed to add escalation contact" }, 500);
   }
 });
@@ -751,7 +752,7 @@ escalationRoutes.put("/contacts/:id", async (c) => {
 
     return c.json(contact);
   } catch (error) {
-    console.error("[ESCALATION] Error updating contact:", error);
+    logger.error({ error }, "[ESCALATION] Error updating contact:");
     return c.json({ error: "Failed to update escalation contact" }, 500);
   }
 });
@@ -860,7 +861,7 @@ escalationRoutes.delete("/contacts/:id", async (c) => {
 
     return c.json({ success: true });
   } catch (error) {
-    console.error("[ESCALATION] Error deleting contact:", error);
+    logger.error({ error }, "[ESCALATION] Error deleting contact:");
     return c.json({ error: "Failed to delete escalation contact" }, 500);
   }
 });
@@ -924,7 +925,7 @@ escalationRoutes.get("/triggers", async (c) => {
       },
     });
   } catch (error) {
-    console.error("[ESCALATION] Error fetching triggers:", error);
+    logger.error({ error }, "[ESCALATION] Error fetching triggers:");
     return c.json({ error: "Failed to fetch escalation triggers" }, 500);
   }
 });
@@ -975,7 +976,7 @@ escalationRoutes.put("/triggers", async (c) => {
 
     return c.json({ success: true });
   } catch (error) {
-    console.error("[ESCALATION] Error updating triggers:", error);
+    logger.error({ error }, "[ESCALATION] Error updating triggers:");
     return c.json({ error: "Failed to update escalation triggers" }, 500);
   }
 });
@@ -1021,7 +1022,7 @@ escalationRoutes.post("/contacts/reorder", async (c) => {
 
     return c.json({ success: true });
   } catch (error) {
-    console.error("[ESCALATION] Error reordering contacts:", error);
+    logger.error({ error }, "[ESCALATION] Error reordering contacts:");
     return c.json({ error: "Failed to reorder contacts" }, 500);
   }
 });

@@ -62,6 +62,7 @@ const OAUTH_CONFIGS: Record<
 
 import { randomBytes } from "crypto";
 import { encrypt, decrypt } from "../services/crypto/encryption.js";
+import { logger } from "../lib/logger.js";
 
 function generateState(): string {
   return randomBytes(32).toString("hex");
@@ -177,7 +178,7 @@ integrationsRoutes.get("/", async (c) => {
 
     return c.json({ integrations: integrations || [] });
   } catch (error) {
-    console.error("[INTEGRATIONS] Error fetching integrations:", error);
+    logger.error({ error }, "[INTEGRATIONS] Error fetching integrations:");
     return c.json({ error: "Failed to fetch integrations" }, 500);
   }
 });
@@ -299,7 +300,7 @@ integrationsRoutes.get("/:provider/authorize", async (c) => {
 
     return c.json({ authUrl });
   } catch (error) {
-    console.error("[INTEGRATIONS] Error initiating OAuth:", error);
+    logger.error({ error }, "[INTEGRATIONS] Error initiating OAuth:");
     return c.json({ error: "Failed to initiate OAuth flow" }, 500);
   }
 });
@@ -404,10 +405,7 @@ integrationsRoutes.get("/:provider/callback", async (c) => {
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
-      console.error(
-        `[OAUTH] Token exchange failed for ${provider}:`,
-        errorText,
-      );
+      logger.error({ errorText }, `[OAUTH] Token exchange failed for ${provider}:`);
       return c.html(
         renderOAuthCallbackResultHtml({
           frontendUrl,
@@ -450,7 +448,7 @@ integrationsRoutes.get("/:provider/callback", async (c) => {
         }
       }
     } catch (e) {
-      console.error(`[OAUTH] Failed to get user info for ${provider}:`, e);
+      logger.error({ e }, `[OAUTH] Failed to get user info for ${provider}:`);
     }
 
     // Calculate token expiration
@@ -485,7 +483,7 @@ integrationsRoutes.get("/:provider/callback", async (c) => {
       }),
     );
   } catch (e) {
-    console.error(`[OAUTH] Error during callback for ${provider}:`, e);
+    logger.error({ e }, `[OAUTH] Error during callback for ${provider}:`);
     return c.html(
       renderOAuthCallbackResultHtml({
         frontendUrl,
@@ -541,7 +539,7 @@ integrationsRoutes.delete("/:id", async (c) => {
 
     return c.json({ success: true });
   } catch (error) {
-    console.error("[INTEGRATIONS] Error deleting integration:", error);
+    logger.error({ error }, "[INTEGRATIONS] Error deleting integration:");
     return c.json({ error: "Failed to delete integration" }, 500);
   }
 });
@@ -661,7 +659,7 @@ integrationsRoutes.post("/:id/refresh", async (c) => {
 
     return c.json({ success: true, status: "active" });
   } catch (e) {
-    console.error(`[OAUTH] Token refresh error:`, e);
+    logger.error({ e }, `[OAUTH] Token refresh error:`);
     return c.json({ error: "Server error" }, 500);
   }
 });

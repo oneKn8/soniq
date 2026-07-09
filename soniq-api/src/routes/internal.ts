@@ -14,6 +14,7 @@ import { queryAll } from "../services/database/client.js";
 import { findOrCreateByPhone } from "../services/contacts/contact-service.js";
 import { runPostCallAutomation } from "../services/automation/post-call.js";
 import type { ToolExecutionContext } from "../types/voice.js";
+import { logger } from "../lib/logger.js";
 
 export const internalRoutes = new Hono();
 
@@ -22,7 +23,7 @@ function internalAuth() {
   return async (c: Context, next: Next) => {
     const apiKey = process.env.INTERNAL_API_KEY;
     if (!apiKey) {
-      console.error("[INTERNAL] INTERNAL_API_KEY not configured");
+      logger.error("[INTERNAL] INTERNAL_API_KEY not configured");
       return c.json({ error: "Internal API not configured" }, 500);
     }
 
@@ -55,7 +56,7 @@ internalRoutes.get("/tenants/by-phone/:phone", async (c) => {
   const tenant = await getTenantByPhoneWithFallback(phone);
 
   if (!tenant) {
-    console.warn(`[INTERNAL] No tenant found for phone: ${phone}`);
+    logger.warn(`[INTERNAL] No tenant found for phone: ${phone}`);
     return c.json({ error: "Tenant not found" }, 404);
   }
 
@@ -69,7 +70,7 @@ internalRoutes.get("/tenants/by-phone/:phone", async (c) => {
     );
     capabilities = (capRows || []).map((row) => row.capability);
   } catch (err) {
-    console.warn("[INTERNAL] Failed to load tenant capabilities:", err);
+    logger.warn({ err }, "[INTERNAL] Failed to load tenant capabilities:");
   }
 
   // Build the system prompt using the existing prompt builder
@@ -149,7 +150,7 @@ internalRoutes.post("/voice-tools/:action", async (c) => {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Tool execution failed";
-    console.error(`[INTERNAL] Tool ${action} failed:`, error);
+    logger.error({ error }, `[INTERNAL] Tool ${action} failed:`);
     return c.json({ error: message }, 500);
   }
 });
@@ -215,7 +216,7 @@ internalRoutes.post("/calls/log", async (c) => {
         );
         contactId = contact.id;
       } catch (err) {
-        console.warn("[INTERNAL] Failed to find/create contact:", err);
+        logger.warn({ err }, "[INTERNAL] Failed to find/create contact:");
       }
     }
 
@@ -241,9 +242,7 @@ internalRoutes.post("/calls/log", async (c) => {
       contact_id: contactId,
     });
 
-    console.log(
-      `[INTERNAL] Call logged: ${body.call_sid}, ${body.duration_seconds}s, ${body.outcome_type || "inquiry"}`,
-    );
+    logger.info(`[INTERNAL] Call logged: ${body.call_sid}, ${body.duration_seconds}s, ${body.outcome_type || "inquiry"}`);
 
     // Run post-call automation (deals, tasks, status updates) - non-blocking
     runPostCallAutomation({
@@ -256,12 +255,12 @@ internalRoutes.post("/calls/log", async (c) => {
       durationSeconds: body.duration_seconds,
       status: mapCallStatus(body.status),
     }).catch((err) => {
-      console.error("[INTERNAL] Post-call automation error:", err);
+      logger.error({ err }, "[INTERNAL] Post-call automation error:");
     });
 
     return c.json({ success: true, id: record.id });
   } catch (error) {
-    console.error("[INTERNAL] Failed to log call:", error);
+    logger.error({ error }, "[INTERNAL] Failed to log call:");
     return c.json({ error: "Failed to save call record" }, 500);
   }
 });

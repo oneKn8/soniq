@@ -8,6 +8,7 @@ import {
 import { getAuthUserId } from "../middleware/index.js";
 import { parseJson } from "../lib/validate.js";
 import type { PoolClient } from "pg";
+import { logger } from "../lib/logger.js";
 
 export const capabilitiesRoutes = new Hono();
 
@@ -141,7 +142,7 @@ capabilitiesRoutes.get("/", async (c) => {
 
     return c.json({ capabilities: capabilities || [] });
   } catch (error) {
-    console.error("[CAPABILITIES] Error fetching capabilities:", error);
+    logger.error({ error }, "[CAPABILITIES] Error fetching capabilities:");
     return c.json({ error: "Failed to fetch capabilities" }, 500);
   }
 });
@@ -206,7 +207,7 @@ capabilitiesRoutes.put("/", async (c) => {
 
     return c.json({ capabilities: updated || [] });
   } catch (error) {
-    console.error("[CAPABILITIES] Error updating capabilities:", error);
+    logger.error({ error }, "[CAPABILITIES] Error updating capabilities:");
     return c.json({ error: "Failed to update capabilities" }, 500);
   }
 });
@@ -260,7 +261,7 @@ capabilitiesRoutes.put("/:capability", async (c) => {
 
     return c.json(data);
   } catch (error) {
-    console.error("[CAPABILITIES] Error updating capability:", error);
+    logger.error({ error }, "[CAPABILITIES] Error updating capability:");
     return c.json({ error: "Failed to update capability" }, 500);
   }
 });

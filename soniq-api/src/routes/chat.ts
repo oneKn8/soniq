@@ -29,6 +29,7 @@ import {
   getProviderStatus,
   type LLMResponse,
 } from "../services/llm/multi-provider.js";
+import { logger } from "../lib/logger.js";
 
 export const chatRoutes = new Hono();
 
@@ -304,7 +305,7 @@ chatRoutes.post(
           },
         );
       } catch (err) {
-        console.warn("[CHAT] Failed to create/update contact:", err);
+        logger.warn({ err }, "[CHAT] Failed to create/update contact:");
       }
     }
 
@@ -320,7 +321,7 @@ chatRoutes.post(
 
     return c.json(response);
   } catch (err) {
-    console.error("[CHAT] Error:", err);
+    logger.error({ err }, "[CHAT] Error:");
     return c.json(
       {
         error: "Chat error",
@@ -370,7 +371,7 @@ chatRoutes.get("/config/:tenant_id", async (c) => {
 
     return c.json(config);
   } catch (err) {
-    console.error("[CHAT] Config error:", err);
+    logger.error({ err }, "[CHAT] Config error:");
     return c.json({ error: "Failed to get config" }, 500);
   }
 });
@@ -411,7 +412,7 @@ async function chatWithMultiProvider(
   systemPrompt: string,
   context: ToolExecutionContext & { sessionId: string },
 ): Promise<ChatResult> {
-  console.log(`[CHAT] Processing message with multi-provider fallback`);
+  logger.info(`[CHAT] Processing message with multi-provider fallback`);
 
   const options = {
     userMessage,
@@ -423,11 +424,11 @@ async function chatWithMultiProvider(
   // First call - may return tool calls
   let response: LLMResponse = await chatWithFallback(options);
 
-  console.log(`[CHAT] Response from ${response.provider}`);
+  logger.info(`[CHAT] Response from ${response.provider}`);
 
   // Handle tool calls if present
   if (response.toolCalls && response.toolCalls.length > 0) {
-    console.log(`[CHAT] Executing ${response.toolCalls.length} tool calls`);
+    logger.info(`[CHAT] Executing ${response.toolCalls.length} tool calls`);
 
     const toolResults: Array<{
       id: string;
@@ -437,7 +438,7 @@ async function chatWithMultiProvider(
     }> = [];
 
     for (const tc of response.toolCalls) {
-      console.log(`[CHAT] Executing tool: ${tc.name}`, tc.args);
+      logger.info({ args: tc.args }, `[CHAT] Executing tool: ${tc.name}`);
 
       const result = await executeChatTool(tc.name, tc.args, context);
       toolResults.push({

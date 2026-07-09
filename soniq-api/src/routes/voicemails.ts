@@ -13,6 +13,7 @@ import {
 
 import { getAuthTenantId, verifyTelephonyWebhook } from "../middleware/index.js";
 import { parseJson, parseForm } from "../lib/validate.js";
+import { logger } from "../lib/logger.js";
 
 // ============================================================================
 // Dashboard router (JWT + X-Tenant-ID). Mounted at /api/voicemails.
@@ -168,12 +169,12 @@ voicemailWebhookRoutes.post("/callback/complete", async (c) => {
   const recordingSid = parsed.data.RecordingSid || "";
   const recordingDuration = parseInt(parsed.data.RecordingDuration || "0", 10);
 
-  console.log("[VOICEMAIL] Recording complete:", {
+  logger.info({
     callSid,
     recordingUrl,
     recordingSid,
     duration: recordingDuration,
-  });
+  }, "[VOICEMAIL] Recording complete:");
 
   if (callSid && recordingUrl) {
     await updateVoicemailRecording(
@@ -202,7 +203,7 @@ voicemailWebhookRoutes.post("/callback/complete", async (c) => {
  */
 voicemailWebhookRoutes.post("/callback/status", async (c) => {
   const body = await c.req.parseBody();
-  console.log("[VOICEMAIL] Recording status:", body);
+  logger.info({ body }, "[VOICEMAIL] Recording status:");
   return c.json({ received: true });
 });
 
@@ -224,10 +225,10 @@ voicemailWebhookRoutes.post("/callback/transcribe", async (c) => {
   const callSid = parsed.data.CallSid;
   const transcriptionText = parsed.data.TranscriptionText;
 
-  console.log("[VOICEMAIL] Transcription received:", {
+  logger.info({
     callSid,
     transcript: transcriptionText?.substring(0, 100),
-  });
+  }, "[VOICEMAIL] Transcription received:");
 
   if (callSid && transcriptionText) {
     await updateVoicemailTranscript(callSid, transcriptionText);

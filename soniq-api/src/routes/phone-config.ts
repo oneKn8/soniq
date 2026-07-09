@@ -19,6 +19,7 @@ import {
   configureSipRouting,
   getSipEndpointStatus,
 } from "../services/signalwire/sip.js";
+import { logger } from "../lib/logger.js";
 
 export const phoneConfigRoutes = new Hono();
 
@@ -131,7 +132,7 @@ phoneConfigRoutes.get("/config", async (c) => {
 
     return c.json({ config, portRequest });
   } catch (error) {
-    console.error("[PHONE] Error fetching config:", error);
+    logger.error({ error }, "[PHONE] Error fetching config:");
     return c.json({ error: "Failed to fetch phone configuration" }, 500);
   }
 });
@@ -219,7 +220,7 @@ phoneConfigRoutes.post("/provision", async (c) => {
       configId: config.id,
     });
   } catch (error) {
-    console.error("[PHONE] Error provisioning number:", error);
+    logger.error({ error }, "[PHONE] Error provisioning number:");
     return c.json({ error: "Failed to provision phone number" }, 500);
   }
 });
@@ -332,7 +333,7 @@ phoneConfigRoutes.post("/port", async (c) => {
       configId: config.id,
     });
   } catch (error) {
-    console.error("[PHONE] Error submitting port request:", error);
+    logger.error({ error }, "[PHONE] Error submitting port request:");
     return c.json({ error: "Failed to submit port request" }, 500);
   }
 });
@@ -385,7 +386,7 @@ phoneConfigRoutes.get("/port/:id/status", async (c) => {
       completedAt: portRequest.completed_at,
     });
   } catch (error) {
-    console.error("[PHONE] Error fetching port status:", error);
+    logger.error({ error }, "[PHONE] Error fetching port status:");
     return c.json({ error: "Failed to fetch port request status" }, 500);
   }
 });
@@ -497,7 +498,7 @@ Note: This only forwards calls you miss -- your phone still rings first.`;
       configId: config.id,
     });
   } catch (error) {
-    console.error("[PHONE] Error setting up forwarding:", error);
+    logger.error({ error }, "[PHONE] Error setting up forwarding:");
     return c.json({ error: "Failed to set up call forwarding" }, 500);
   }
 });
@@ -546,7 +547,7 @@ phoneConfigRoutes.post("/verify-forward", async (c) => {
 
     return c.json({ success: true });
   } catch (error) {
-    console.error("[PHONE] Error verifying forward:", error);
+    logger.error({ error }, "[PHONE] Error verifying forward:");
     return c.json({ error: "Failed to verify forwarding" }, 500);
   }
 });
@@ -598,7 +599,7 @@ phoneConfigRoutes.post("/sip", async (c) => {
     );
 
     if (routingError) {
-      console.warn("[PHONE] SIP routing config failed:", routingError);
+      logger.warn({ routingError }, "[PHONE] SIP routing config failed:");
       // Non-fatal: endpoint was created, routing can be retried
     }
 
@@ -625,7 +626,7 @@ phoneConfigRoutes.post("/sip", async (c) => {
       configId: config.id,
     });
   } catch (error) {
-    console.error("[PHONE] Error creating SIP endpoint:", error);
+    logger.error({ error }, "[PHONE] Error creating SIP endpoint:");
     return c.json({ error: "Failed to create SIP endpoint" }, 500);
   }
 });
@@ -704,7 +705,7 @@ phoneConfigRoutes.get("/sip/status", async (c) => {
       status: registered ? "active" : config.status,
     });
   } catch (error) {
-    console.error("[PHONE] Error checking SIP status:", error);
+    logger.error({ error }, "[PHONE] Error checking SIP status:");
     return c.json({ error: "Failed to check SIP status" }, 500);
   }
 });
