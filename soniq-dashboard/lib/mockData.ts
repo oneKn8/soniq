@@ -10,10 +10,18 @@ import type {
   LogEntry,
   LogLevel,
   LogCategory,
-  IndustryType,
   MetricValue,
 } from "@/types";
-import { INDUSTRY_PRESETS } from "./industryPresets";
+
+// Neutral base rate used for mock revenue figures (no per-industry pricing).
+const MOCK_BASE_RATE = 120;
+
+// Domain-neutral intents used only to seed mock call sessions.
+const MOCK_INTENTS = [
+  { id: "book", name: "Booking", action: "book" as const },
+  { id: "inquiry", name: "Inquiry", action: "inquire" as const },
+  { id: "support", name: "Support", action: "message" as const },
+];
 
 // ============================================================================
 // SYSTEM METRICS
@@ -35,19 +43,10 @@ export function generateSystemMetrics(): SystemMetrics {
 // BUSINESS METRICS (SOW-ALIGNED)
 // ============================================================================
 
-export function generateBusinessMetrics(
-  industry: IndustryType,
-): BusinessMetrics {
-  const preset = INDUSTRY_PRESETS[industry];
-  const baseRate = preset.defaultPricing.baseRate;
+export function generateBusinessMetrics(): BusinessMetrics {
+  const baseRate = MOCK_BASE_RATE;
 
-  // SOW Reference: 47 bookings captured, $6,000+ revenue
-  const transactionsToday =
-    industry === "hotel"
-      ? Math.floor(40 + Math.random() * 15) // 40-55 (SOW: 47)
-      : industry === "medical"
-        ? Math.floor(18 + Math.random() * 10) // 18-28
-        : Math.floor(8 + Math.random() * 8); // 8-16
+  const transactionsToday = Math.floor(12 + Math.random() * 24); // 12-36
 
   const avgValue = baseRate * (0.9 + Math.random() * 0.2);
   const revenueToday = transactionsToday * avgValue;
@@ -84,12 +83,10 @@ export function generateCallMetrics(): CallMetrics {
 // COMBINED DASHBOARD METRICS
 // ============================================================================
 
-export function generateDashboardMetrics(
-  industry: IndustryType,
-): DashboardMetrics {
+export function generateDashboardMetrics(): DashboardMetrics {
   return {
     system: generateSystemMetrics(),
-    business: generateBusinessMetrics(industry),
+    business: generateBusinessMetrics(),
     calls: generateCallMetrics(),
   };
 }
@@ -98,134 +95,10 @@ export function generateDashboardMetrics(
 // INDUSTRY-SPECIFIC METRICS
 // ============================================================================
 
-export function generateIndustryMetrics(industry: IndustryType): MetricValue[] {
+export function generateIndustryMetrics(): MetricValue[] {
   const now = new Date().toISOString();
 
-  // Group industries by category for metrics generation
-  const hospitalityIndustries = ["hotel", "motel", "restaurant"];
-  const healthcareIndustries = ["medical", "dental"];
-  const automotiveIndustries = ["auto_service"];
-  const personalCareIndustries = ["salon"];
-
-  if (hospitalityIndustries.includes(industry)) {
-    return [
-      {
-        id: "occupancy",
-        value: 78 + Math.random() * 15,
-        status: "nominal",
-        timestamp: now,
-      },
-      {
-        id: "adr",
-        value: 139 + Math.random() * 30,
-        status: "nominal",
-        timestamp: now,
-      },
-      {
-        id: "revpar",
-        value: 108 + Math.random() * 25,
-        status: "nominal",
-        timestamp: now,
-      },
-      {
-        id: "bookings",
-        value: Math.floor(40 + Math.random() * 15),
-        previousValue: 38,
-        trend: "up",
-        status: "nominal",
-        timestamp: now,
-      },
-    ];
-  }
-
-  if (healthcareIndustries.includes(industry)) {
-    return [
-      {
-        id: "appointments",
-        value: Math.floor(22 + Math.random() * 8),
-        status: "nominal",
-        timestamp: now,
-      },
-      {
-        id: "scheduled",
-        value: Math.floor(18 + Math.random() * 6),
-        status: "nominal",
-        timestamp: now,
-      },
-      {
-        id: "callbacks",
-        value: Math.floor(Math.random() * 5),
-        status: "nominal",
-        timestamp: now,
-      },
-      {
-        id: "noshow",
-        value: 4 + Math.random() * 4,
-        status: "nominal",
-        timestamp: now,
-      },
-    ];
-  }
-
-  if (automotiveIndustries.includes(industry)) {
-    return [
-      {
-        id: "leads",
-        value: Math.floor(15 + Math.random() * 10),
-        status: "nominal",
-        timestamp: now,
-      },
-      {
-        id: "testDrives",
-        value: Math.floor(4 + Math.random() * 6),
-        status: "nominal",
-        timestamp: now,
-      },
-      {
-        id: "services",
-        value: Math.floor(8 + Math.random() * 8),
-        status: "nominal",
-        timestamp: now,
-      },
-      {
-        id: "avgTicket",
-        value: 350 + Math.random() * 150,
-        status: "nominal",
-        timestamp: now,
-      },
-    ];
-  }
-
-  if (personalCareIndustries.includes(industry)) {
-    return [
-      {
-        id: "appointments",
-        value: Math.floor(18 + Math.random() * 10),
-        status: "nominal",
-        timestamp: now,
-      },
-      {
-        id: "walkins",
-        value: Math.floor(3 + Math.random() * 5),
-        status: "nominal",
-        timestamp: now,
-      },
-      {
-        id: "avgTicket",
-        value: 65 + Math.random() * 35,
-        status: "nominal",
-        timestamp: now,
-      },
-      {
-        id: "retention",
-        value: 75 + Math.random() * 15,
-        status: "nominal",
-        timestamp: now,
-      },
-    ];
-  }
-
-  // Default fallback
+  // Universal, industry-agnostic metric set.
   return [
     {
       id: "calls",
@@ -435,10 +308,9 @@ export function generateInitialLogs(count: number = 25): LogEntry[] {
 // CALL SESSION GENERATION
 // ============================================================================
 
-export function generateCallSession(industry: IndustryType): CallSession {
-  const preset = INDUSTRY_PRESETS[industry];
-  const intents = preset.intents;
-  const randomIntent = intents[Math.floor(Math.random() * intents.length)];
+export function generateCallSession(): CallSession {
+  const randomIntent =
+    MOCK_INTENTS[Math.floor(Math.random() * MOCK_INTENTS.length)];
   const duration = Math.floor(60 + Math.random() * 300);
   const success = Math.random() > 0.15; // 85% success rate
 
@@ -459,19 +331,12 @@ export function generateCallSession(industry: IndustryType): CallSession {
     ],
     sentimentScore: 0.3 + Math.random() * 0.6,
     outcome: {
-      type:
-        randomIntent.action === "book"
-          ? industry === "hotel"
-            ? "booking"
-            : "appointment"
-          : "inquiry",
+      type: randomIntent.action === "book" ? "booking" : "inquiry",
       success,
       details: success ? { confirmed: true } : undefined,
     },
     revenue:
-      success && randomIntent.action === "book"
-        ? preset.defaultPricing.baseRate
-        : undefined,
+      success && randomIntent.action === "book" ? MOCK_BASE_RATE : undefined,
   };
 }
 

@@ -118,10 +118,7 @@ export function SoniqWidget({
           lowerMessage.includes("customer")
         ) {
           onDemoTrigger?.("contact");
-        } else if (
-          lowerMessage.includes("dashboard") ||
-          lowerMessage.includes("workstation")
-        ) {
+        } else if (lowerMessage.includes("dashboard")) {
           onDemoTrigger?.("dashboard");
         }
       }
