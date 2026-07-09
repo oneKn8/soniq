@@ -24,6 +24,7 @@ yarn-error.log*
 !**/.env.example
 !**/.env.sample
 !**/.env.template
+!**/.env.*.example
 
 # system
 .DS_Store

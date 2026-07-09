@@ -11,28 +11,26 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Zap,
   LogOut,
   Users,
   Calendar,
   Bell,
   Package,
-  Headphones,
   AlertCircle,
   User,
   Target,
   CheckSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useIndustry } from "@/context/IndustryContext";
+import { useTerminology } from "@/lib/terminology";
+import { SoniqMark } from "@/components/brand/SoniqMark";
 
 // Route mapping for navigation
 const VIEW_ROUTES: Record<
-  ViewType | "workstation" | "escalations" | "profile",
+  ViewType | "escalations" | "profile",
   string
 > = {
   dashboard: "/dashboard",
-  workstation: "/workstation",
   calls: "/calls",
   analytics: "/analytics",
   escalations: "/escalations",
@@ -51,7 +49,7 @@ const VIEW_ROUTES: Record<
 // ============================================================================
 
 interface NavItem {
-  id: ViewType | "workstation" | "escalations" | "profile";
+  id: ViewType | "escalations" | "profile";
   label: string;
   icon: React.ElementType;
   badge?: number;
@@ -67,7 +65,6 @@ function buildNavSections(dealPluralLabel: string): NavSection[] {
     {
       title: "Workspace",
       items: [
-        { id: "workstation", label: "Workstation", icon: Headphones },
         { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
         { id: "escalations", label: "Escalations", icon: AlertCircle },
       ],
@@ -108,8 +105,13 @@ export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const { config, uiState, setView, toggleSidebar, resetConfig } = useConfig();
-  const { dealPluralLabel } = useIndustry();
+  const { dealPluralLabel } = useTerminology();
   const { sidebarCollapsed } = uiState;
+
+  // The configuration reset is a developer-only tool: only expose it in
+  // non-production builds or for accounts with the developer role.
+  const showDevReset =
+    process.env.NODE_ENV !== "production" || config?.userRole === "developer";
 
   const NAV_SECTIONS = React.useMemo(
     () => buildNavSections(dealPluralLabel),
@@ -157,13 +159,13 @@ export default function Sidebar() {
       <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-4">
         {!sidebarCollapsed && (
           <div className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-primary" />
+            <SoniqMark className="h-6 w-6 shrink-0" decorative />
             <span className="font-semibold text-sidebar-foreground">
               Soniq
             </span>
           </div>
         )}
-        {sidebarCollapsed && <Zap className="mx-auto h-5 w-5 text-primary" />}
+        {sidebarCollapsed && <SoniqMark className="mx-auto h-6 w-6" />}
       </div>
 
       {/* Navigation */}
@@ -244,20 +246,22 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* Reset (Dev) */}
-      <div className="border-t border-sidebar-border p-2">
-        <button
-          onClick={resetConfig}
-          className={cn(
-            "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-destructive",
-            sidebarCollapsed && "justify-center",
-          )}
-          title="Reset Configuration"
-        >
-          <LogOut className="h-4 w-4" />
-          {!sidebarCollapsed && <span>Reset</span>}
-        </button>
-      </div>
+      {/* Reset (developer only) */}
+      {showDevReset && (
+        <div className="border-t border-sidebar-border p-2">
+          <button
+            onClick={resetConfig}
+            className={cn(
+              "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-destructive",
+              sidebarCollapsed && "justify-center",
+            )}
+            title="Reset Configuration"
+          >
+            <LogOut className="h-4 w-4" />
+            {!sidebarCollapsed && <span>Reset</span>}
+          </button>
+        </div>
+      )}
     </aside>
   );
 }

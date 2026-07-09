@@ -9,7 +9,7 @@ import { get, post, put, patch, del } from "./client";
 // TYPES
 // ============================================================================
 
-// Industry-specific task types -- see industryPresets.ts for per-industry definitions
+// Task types -- see lib/terminology.ts for the universal task type definition
 export type TaskType = string;
 
 export type TaskPriority = "low" | "medium" | "high" | "urgent";

@@ -1,4 +1,5 @@
-/**
+
+import { logger } from "../../lib/logger.js";/**
  * SignalWire Phone Number Management
  * Handles provisioning, searching, and configuring phone numbers
  */
@@ -82,7 +83,7 @@ export async function searchAvailableNumbers(
 
     if (!response.ok) {
       const error = await response.text();
-      console.error("[SIGNALWIRE] Search error:", error);
+      logger.error({ error }, "[SIGNALWIRE] Search error:");
       return { numbers: [], error: "Failed to search numbers" };
     }
 
@@ -96,7 +97,7 @@ export async function searchAvailableNumbers(
 
     return { numbers };
   } catch (e) {
-    console.error("[SIGNALWIRE] Search exception:", e);
+    logger.error({ e }, "[SIGNALWIRE] Search exception:");
     return { numbers: [], error: "Failed to search numbers" };
   }
 }
@@ -118,14 +119,14 @@ export async function provisionNumber(
 
     if (!response.ok) {
       const error = await response.text();
-      console.error("[SIGNALWIRE] Provision error:", error);
+      logger.error({ error }, "[SIGNALWIRE] Provision error:");
       return { error: "Failed to provision number" };
     }
 
     const data = (await response.json()) as { sid?: string };
     return { sid: data.sid };
   } catch (e) {
-    console.error("[SIGNALWIRE] Provision exception:", e);
+    logger.error({ e }, "[SIGNALWIRE] Provision exception:");
     return { error: "Failed to provision number" };
   }
 }
@@ -156,13 +157,13 @@ export async function configureNumberWebhooks(
 
     if (!response.ok) {
       const error = await response.text();
-      console.error("[SIGNALWIRE] Configure error:", error);
+      logger.error({ error }, "[SIGNALWIRE] Configure error:");
       return { success: false, error: "Failed to configure webhooks" };
     }
 
     return { success: true };
   } catch (e) {
-    console.error("[SIGNALWIRE] Configure exception:", e);
+    logger.error({ e }, "[SIGNALWIRE] Configure exception:");
     return { success: false, error: "Failed to configure webhooks" };
   }
 }
@@ -181,13 +182,13 @@ export async function releaseNumber(
 
     if (!response.ok && response.status !== 204) {
       const error = await response.text();
-      console.error("[SIGNALWIRE] Release error:", error);
+      logger.error({ error }, "[SIGNALWIRE] Release error:");
       return { success: false, error: "Failed to release number" };
     }
 
     return { success: true };
   } catch (e) {
-    console.error("[SIGNALWIRE] Release exception:", e);
+    logger.error({ e }, "[SIGNALWIRE] Release exception:");
     return { success: false, error: "Failed to release number" };
   }
 }
@@ -208,7 +209,7 @@ export async function getNumberDetails(
 
     if (!response.ok) {
       const error = await response.text();
-      console.error("[SIGNALWIRE] Get details error:", error);
+      logger.error({ error }, "[SIGNALWIRE] Get details error:");
       return { error: "Failed to get number details" };
     }
 
@@ -223,7 +224,7 @@ export async function getNumberDetails(
       },
     };
   } catch (e) {
-    console.error("[SIGNALWIRE] Get details exception:", e);
+    logger.error({ e }, "[SIGNALWIRE] Get details exception:");
     return { error: "Failed to get number details" };
   }
 }

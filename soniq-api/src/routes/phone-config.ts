@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { z } from "zod";
+import { parseJson } from "../lib/validate.js";
 import { queryOne } from "../services/database/client.js";
 import {
   insertOne,
@@ -17,6 +19,7 @@ import {
   configureSipRouting,
   getSipEndpointStatus,
 } from "../services/signalwire/sip.js";
+import { logger } from "../lib/logger.js";
 
 export const phoneConfigRoutes = new Hono();
 
@@ -129,7 +132,7 @@ phoneConfigRoutes.get("/config", async (c) => {
 
     return c.json({ config, portRequest });
   } catch (error) {
-    console.error("[PHONE] Error fetching config:", error);
+    logger.error({ error }, "[PHONE] Error fetching config:");
     return c.json({ error: "Failed to fetch phone configuration" }, 500);
   }
 });
@@ -138,13 +141,15 @@ phoneConfigRoutes.get("/config", async (c) => {
  * POST /api/phone/provision
  * Provision a new phone number
  */
-phoneConfigRoutes.post("/provision", async (c) => {
-  const body = await c.req.json();
-  const userId = getAuthUserId(c);
+const provisionSchema = z.object({
+  phoneNumber: z.string().min(1),
+});
 
-  if (!body.phoneNumber) {
-    return c.json({ error: "phoneNumber is required" }, 400);
-  }
+phoneConfigRoutes.post("/provision", async (c) => {
+  const parsed = await parseJson(c, provisionSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
+  const userId = getAuthUserId(c);
 
   try {
     // Get tenant
@@ -215,7 +220,7 @@ phoneConfigRoutes.post("/provision", async (c) => {
       configId: config.id,
     });
   } catch (error) {
-    console.error("[PHONE] Error provisioning number:", error);
+    logger.error({ error }, "[PHONE] Error provisioning number:");
     return c.json({ error: "Failed to provision phone number" }, 500);
   }
 });
@@ -224,20 +229,20 @@ phoneConfigRoutes.post("/provision", async (c) => {
  * POST /api/phone/port
  * Submit a number port request
  */
-phoneConfigRoutes.post("/port", async (c) => {
-  const body = await c.req.json();
-  const userId = getAuthUserId(c);
+const portSchema = z.object({
+  phone_number: z.string().min(1),
+  current_carrier: z.string().min(1),
+  authorized_name: z.string().min(1),
+  account_number: z.string().optional(),
+  pin: z.string().optional(),
+  use_temp_number: z.boolean().optional(),
+});
 
-  // Validate required fields
-  if (!body.phone_number || !body.current_carrier || !body.authorized_name) {
-    return c.json(
-      {
-        error:
-          "phone_number, current_carrier, and authorized_name are required",
-      },
-      400,
-    );
-  }
+phoneConfigRoutes.post("/port", async (c) => {
+  const parsed = await parseJson(c, portSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
+  const userId = getAuthUserId(c);
 
   try {
     // Get tenant
@@ -328,7 +333,7 @@ phoneConfigRoutes.post("/port", async (c) => {
       configId: config.id,
     });
   } catch (error) {
-    console.error("[PHONE] Error submitting port request:", error);
+    logger.error({ error }, "[PHONE] Error submitting port request:");
     return c.json({ error: "Failed to submit port request" }, 500);
   }
 });
@@ -381,7 +386,7 @@ phoneConfigRoutes.get("/port/:id/status", async (c) => {
       completedAt: portRequest.completed_at,
     });
   } catch (error) {
-    console.error("[PHONE] Error fetching port status:", error);
+    logger.error({ error }, "[PHONE] Error fetching port status:");
     return c.json({ error: "Failed to fetch port request status" }, 500);
   }
 });
@@ -390,13 +395,15 @@ phoneConfigRoutes.get("/port/:id/status", async (c) => {
  * POST /api/phone/forward
  * Set up call forwarding
  */
-phoneConfigRoutes.post("/forward", async (c) => {
-  const body = await c.req.json();
-  const userId = getAuthUserId(c);
+const forwardSchema = z.object({
+  business_number: z.string().min(1),
+});
 
-  if (!body.business_number) {
-    return c.json({ error: "business_number is required" }, 400);
-  }
+phoneConfigRoutes.post("/forward", async (c) => {
+  const parsed = await parseJson(c, forwardSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
+  const userId = getAuthUserId(c);
 
   try {
     // Get tenant
@@ -491,7 +498,7 @@ Note: This only forwards calls you miss -- your phone still rings first.`;
       configId: config.id,
     });
   } catch (error) {
-    console.error("[PHONE] Error setting up forwarding:", error);
+    logger.error({ error }, "[PHONE] Error setting up forwarding:");
     return c.json({ error: "Failed to set up call forwarding" }, 500);
   }
 });
@@ -540,7 +547,7 @@ phoneConfigRoutes.post("/verify-forward", async (c) => {
 
     return c.json({ success: true });
   } catch (error) {
-    console.error("[PHONE] Error verifying forward:", error);
+    logger.error({ error }, "[PHONE] Error verifying forward:");
     return c.json({ error: "Failed to verify forwarding" }, 500);
   }
 });
@@ -592,7 +599,7 @@ phoneConfigRoutes.post("/sip", async (c) => {
     );
 
     if (routingError) {
-      console.warn("[PHONE] SIP routing config failed:", routingError);
+      logger.warn({ routingError }, "[PHONE] SIP routing config failed:");
       // Non-fatal: endpoint was created, routing can be retried
     }
 
@@ -619,7 +626,7 @@ phoneConfigRoutes.post("/sip", async (c) => {
       configId: config.id,
     });
   } catch (error) {
-    console.error("[PHONE] Error creating SIP endpoint:", error);
+    logger.error({ error }, "[PHONE] Error creating SIP endpoint:");
     return c.json({ error: "Failed to create SIP endpoint" }, 500);
   }
 });
@@ -698,7 +705,7 @@ phoneConfigRoutes.get("/sip/status", async (c) => {
       status: registered ? "active" : config.status,
     });
   } catch (error) {
-    console.error("[PHONE] Error checking SIP status:", error);
+    logger.error({ error }, "[PHONE] Error checking SIP status:");
     return c.json({ error: "Failed to check SIP status" }, 500);
   }
 });

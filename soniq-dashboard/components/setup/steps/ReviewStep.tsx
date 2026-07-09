@@ -27,7 +27,6 @@ import {
 } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
 import { useSetup } from "../SetupContext";
-import { INDUSTRY_PRESETS } from "@/lib/industryPresets";
 import type { SetupStep } from "@/types";
 
 interface SummaryCardProps {
@@ -78,14 +77,10 @@ export function ReviewStep() {
   const [testingCall, setTestingCall] = useState(false);
   const [launchError, setLaunchError] = useState<string | null>(null);
 
-  const industry = state.businessData.industry
-    ? INDUSTRY_PRESETS[state.businessData.industry]
-    : null;
-
   const checklistItems = [
     {
       label: "Business information",
-      complete: !!state.businessData.name && !!state.businessData.industry,
+      complete: !!state.businessData.name,
     },
     {
       label: "Phone number configured",
@@ -185,7 +180,6 @@ export function ReviewStep() {
           onEdit={() => handleEditStep("business")}
           items={[
             { label: "Name", value: state.businessData.name || "-" },
-            { label: "Industry", value: industry?.label || "-" },
             { label: "Location", value: state.businessData.city || "-" },
           ]}
         />

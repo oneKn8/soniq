@@ -4,14 +4,14 @@ import { ConfigProvider, useConfig } from "@/context/ConfigContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { TenantProvider, useTenant } from "@/context/TenantContext";
-import { IndustryProvider } from "@/context/IndustryContext";
 import { EscalationProvider } from "@/context/EscalationContext";
 import Sidebar from "@/components/dashboard/Sidebar";
 import TopBar from "@/components/dashboard/TopBar";
 import MobileNav from "@/components/dashboard/MobileNav";
 import { EscalationDock, EscalationPanel } from "@/components/escalation";
 import { SkipLinks } from "@/components/ui/skip-links";
-import { Loader2, Zap } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { SoniqMark } from "@/components/brand/SoniqMark";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -21,7 +21,7 @@ function LoadingScreen() {
       <div className="relative mb-6">
         <div className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
         <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-border bg-card">
-          <Zap className="h-8 w-8 text-primary" />
+          <SoniqMark className="h-9 w-9" decorative />
         </div>
       </div>
       <div className="text-center">
@@ -128,11 +128,9 @@ export default function DashboardLayout({
       <AuthProvider>
         <TenantProvider>
           <ConfigProvider>
-            <IndustryProvider>
-              <EscalationProvider>
-                <DashboardContent>{children}</DashboardContent>
-              </EscalationProvider>
-            </IndustryProvider>
+            <EscalationProvider>
+              <DashboardContent>{children}</DashboardContent>
+            </EscalationProvider>
           </ConfigProvider>
         </TenantProvider>
       </AuthProvider>

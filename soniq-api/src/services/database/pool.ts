@@ -1,4 +1,5 @@
 import { Pool, PoolClient, QueryResult, QueryResultRow } from "pg";
+import { logger } from "../../lib/logger.js";
 
 let pool: Pool | null = null;
 
@@ -37,10 +38,10 @@ export function initPool(): Pool {
   });
 
   pool.on("error", (err) => {
-    console.error("[DB] Unexpected pool error:", err.message);
+    logger.error({ message: err.message }, "[DB] Unexpected pool error:");
   });
 
-  console.log("[DB] PostgreSQL pool initialized");
+  logger.info("[DB] PostgreSQL pool initialized");
   return pool;
 }
 
@@ -69,13 +70,13 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
     const duration = Date.now() - start;
 
     if (duration > SLOW_QUERY_THRESHOLD_MS) {
-      console.warn(`[DB] Slow query (${duration}ms):`, text.substring(0, 100));
+      logger.warn({ detail: text.substring(0, 100) }, `[DB] Slow query (${duration}ms):`);
     }
 
     return result;
   } catch (err) {
     const duration = Date.now() - start;
-    console.error(`[DB] Query failed (${duration}ms):`, text.substring(0, 100));
+    logger.error({ detail: text.substring(0, 100) }, `[DB] Query failed (${duration}ms):`);
     throw err;
   }
 }
@@ -161,20 +162,14 @@ export async function tenantQuery<T extends QueryResultRow = QueryResultRow>(
 
     const duration = Date.now() - start;
     if (duration > SLOW_QUERY_THRESHOLD_MS) {
-      console.warn(
-        `[DB] Slow tenant query (${duration}ms):`,
-        text.substring(0, 100),
-      );
+      logger.warn({ detail: text.substring(0, 100) }, `[DB] Slow tenant query (${duration}ms):`);
     }
 
     return result;
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});
     const duration = Date.now() - start;
-    console.error(
-      `[DB] Tenant query failed (${duration}ms):`,
-      text.substring(0, 100),
-    );
+    logger.error({ detail: text.substring(0, 100) }, `[DB] Tenant query failed (${duration}ms):`);
     throw err;
   } finally {
     client.release();
@@ -288,9 +283,9 @@ export async function checkHealth(): Promise<{
  */
 export async function closePool(): Promise<void> {
   if (pool) {
-    console.log("[DB] Closing connection pool...");
+    logger.info("[DB] Closing connection pool...");
     await pool.end();
     pool = null;
-    console.log("[DB] Connection pool closed");
+    logger.info("[DB] Connection pool closed");
   }
 }

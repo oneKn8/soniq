@@ -7,8 +7,9 @@
 </p>
 
 <p align="center">
-  <strong>AI voice agents that answer your business phones.</strong><br>
-  Book appointments. Take orders. Handle FAQs. Route calls. 24/7.
+  <strong>One AI voice agent that answers your business phones.</strong><br>
+  Book appointments. Take orders. Handle FAQs. Route calls. 24/7.<br>
+  Universal and config-driven: shaped per tenant by capabilities, not by an industry.
 </p>
 
 <p align="center">
@@ -20,7 +21,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/Next.js_15-000?style=flat-square&logo=next.js&logoColor=white" alt="Next.js">
+  <img src="https://img.shields.io/badge/Next.js_16-000?style=flat-square&logo=next.js&logoColor=white" alt="Next.js">
   <img src="https://img.shields.io/badge/Hono-E36002?style=flat-square&logo=hono&logoColor=white" alt="Hono">
   <img src="https://img.shields.io/badge/LiveKit-FF2D55?style=flat-square&logo=livekit&logoColor=white" alt="LiveKit">
   <img src="https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker">
@@ -33,7 +34,7 @@
 <table>
 <tr>
 <td align="center"><strong>~450ms</strong><br><sub>voice-to-voice</sub></td>
-<td align="center"><strong>7</strong><br><sub>industry presets</sub></td>
+<td align="center"><strong>6</strong><br><sub>toggleable capabilities</sub></td>
 <td align="center"><strong>3</strong><br><sub>LLM providers</sub></td>
 <td align="center"><strong>Multi-tenant</strong><br><sub>architecture</sub></td>
 </tr>
@@ -76,8 +77,8 @@ Three services, one `docker compose up`:
 
 | Service | Stack | What it does |
 |:--------|:------|:-------------|
-| **soniq-api** | Hono + TypeScript + Node 20 | REST API, voice pipeline, business logic, scheduled jobs |
-| **soniq-dashboard** | Next.js 15 + React 19 + Tailwind | Tenant dashboard, live call monitoring, CRM, setup wizard |
+| **soniq-api** | Hono + TypeScript + Node 22 | REST API, voice pipeline, business logic, scheduled jobs |
+| **soniq-dashboard** | Next.js 16 + React 19 + Tailwind | Tenant dashboard, live call monitoring, CRM, setup wizard |
 | **soniq-agent** | Python + LiveKit Agents SDK | Voice agent worker with tool calling |
 
 <br>
@@ -90,21 +91,32 @@ Three services, one `docker compose up`:
 
 **CRM** -- Contacts with call history / deals pipeline / task management / sentiment detection for priority escalation
 
-**Multi-tenant** -- Per-tenant config, prompts, phone numbers, and industry presets / tenant isolation at database level / white-label ready
+**Multi-tenant** -- Per-tenant config, prompts, voice, phone numbers, and capabilities / tenant isolation at database level / white-label ready
 
-<details>
-<summary><strong>7 industry presets</strong></summary>
 <br>
 
-| Category | Presets |
-|:---------|:--------|
-| Hospitality | Hotel, Motel, Restaurant |
-| Healthcare | Medical, Dental |
-| Automotive | Auto Service |
-| Personal Care | Salon |
+## How it's configured
 
-Each preset includes custom terminology, intents, appointment types, escalation triggers, and voice prompts.
-</details>
+Soniq is **one universal voice agent**, not a bundle of industry templates. There is no industry to
+pick. Each tenant is shaped by two things:
+
+**Capabilities** -- toggle what the agent is allowed to do on a call:
+
+| Capability | Default | What it does |
+|:-----------|:--------|:-------------|
+| Appointment booking | on | Checks availability and books with calendar sync |
+| FAQ & knowledge | on | Answers from the tenant's business description and Q/A pairs |
+| Call transfer / escalation | on | Hands off to a human with full conversation context |
+| Voicemail | on | Captures and transcribes messages after hours |
+| Callbacks | on | Queues and schedules return calls |
+| Order / request taking | off | Takes a domain-neutral order or request |
+
+**Business config** -- free-form: business name, agent name, voice, greetings, operating hours,
+location, escalation rules, and a knowledge base of FAQ pairs. Universal terminology (customer,
+booking, deal, task) and one default deal pipeline apply to every tenant, so the same agent serves
+any business without per-industry code.
+
+<br>
 
 <details>
 <summary><strong>Tech stack details</strong></summary>
@@ -118,7 +130,7 @@ Each preset includes custom terminology, intents, appointment types, escalation 
 | TTS | Cartesia Sonic | Streaming text-to-speech synthesis |
 | Voice Agent | LiveKit Agents SDK | Python agent worker with Silero VAD |
 | Database | Supabase (PostgreSQL) | Multi-tenant data, auth, real-time |
-| Frontend | Next.js 15, shadcn/ui, Radix | App Router, SSR, responsive dashboard |
+| Frontend | Next.js 16, shadcn/ui, Radix | App Router, SSR, responsive dashboard |
 | Backend | Hono.js, TypeScript | Lightweight, fast, middleware-based API |
 </details>
 
@@ -128,7 +140,7 @@ Each preset includes custom terminology, intents, appointment types, escalation 
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 22+
 - Python 3.12+ (for voice agent)
 - [Supabase](https://supabase.com) project
 - API keys for: [Deepgram](https://deepgram.com), [Cartesia](https://cartesia.ai), [SignalWire](https://signalwire.com), and at least one LLM provider
@@ -191,7 +203,7 @@ soniq/
 │   │   ├── services/           # Voice pipeline, LLM, calendar, CRM
 │   │   ├── middleware/         # Auth, rate limiting
 │   │   ├── jobs/               # Scheduled automation
-│   │   └── config/             # Industry prompts, pipeline config
+│   │   └── config/             # Universal prompt, pipeline, voice config
 │   ├── migrations/             # SQL migrations
 │   └── Dockerfile
 │
@@ -200,7 +212,7 @@ soniq/
 │   │   ├── (auth)/             # Login, signup, password reset
 │   │   └── (dashboard)/        # All dashboard pages
 │   ├── components/             # UI components
-│   ├── lib/                    # API client, utilities, presets
+│   ├── lib/                    # API client, terminology, capabilities
 │   └── Dockerfile
 │
 ├── soniq-agent/                # Voice Agent

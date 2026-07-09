@@ -10,6 +10,7 @@ import type {
   ChatCompletionTool,
 } from "openai/resources/chat/completions";
 import type { ConversationMessage } from "../../types/voice.js";
+import { logger } from "../../lib/logger.js";
 
 // Provider status tracking
 type ProviderStatus = "available" | "rate_limited" | "error";
@@ -23,10 +24,10 @@ const providerStatus: Record<
 };
 
 // Log provider availability at startup
-console.log(`[LLM] Provider status at startup:`);
-console.log(`  - Gemini: ${genAI ? "READY" : "NOT CONFIGURED"}`);
-console.log(`  - OpenAI: ${openaiClient ? "READY" : "NOT CONFIGURED"}`);
-console.log(`  - Groq: ${groqClient ? "READY" : "NOT CONFIGURED"}`);
+logger.info(`[LLM] Provider status at startup:`);
+logger.info(`  - Gemini: ${genAI ? "READY" : "NOT CONFIGURED"}`);
+logger.info(`  - OpenAI: ${openaiClient ? "READY" : "NOT CONFIGURED"}`);
+logger.info(`  - Groq: ${groqClient ? "READY" : "NOT CONFIGURED"}`);
 
 // Rate limit cooldown (5 minutes)
 const RATE_LIMIT_COOLDOWN_MS = 5 * 60 * 1000;
@@ -38,7 +39,7 @@ function isProviderAvailable(provider: string): boolean {
   if (status.until && Date.now() > status.until) {
     status.status = "available";
     status.until = undefined;
-    console.log(`[LLM] ${provider} cooldown expired, marking available`);
+    logger.info(`[LLM] ${provider} cooldown expired, marking available`);
     return true;
   }
   return false;
@@ -49,7 +50,7 @@ function markProviderRateLimited(provider: string): void {
     status: "rate_limited",
     until: Date.now() + RATE_LIMIT_COOLDOWN_MS,
   };
-  console.log(`[LLM] ${provider} rate limited, cooling down for 5 minutes`);
+  logger.info(`[LLM] ${provider} rate limited, cooling down for 5 minutes`);
 }
 
 function markProviderError(provider: string): void {
@@ -57,7 +58,7 @@ function markProviderError(provider: string): void {
     status: "error",
     until: Date.now() + 60000, // 1 minute cooldown for errors
   };
-  console.log(`[LLM] ${provider} error, cooling down for 1 minute`);
+  logger.info(`[LLM] ${provider} error, cooling down for 1 minute`);
 }
 
 // Convert Gemini function declarations to OpenAI/Groq format
@@ -220,22 +221,20 @@ export async function chatWithFallback(
   for (const provider of providers) {
     // Skip if client not initialized (no API key)
     if (!isProviderInitialized(provider.name)) {
-      console.log(
-        `[LLM] Skipping ${provider.name} (not initialized - no API key)`,
-      );
+      logger.info(`[LLM] Skipping ${provider.name} (not initialized - no API key)`);
       continue;
     }
 
     // Skip if temporarily unavailable (rate limited or recent error)
     if (!isProviderAvailable(provider.name)) {
-      console.log(`[LLM] Skipping ${provider.name} (cooling down)`);
+      logger.info(`[LLM] Skipping ${provider.name} (cooling down)`);
       continue;
     }
 
     try {
-      console.log(`[LLM] Trying ${provider.name}...`);
+      logger.info(`[LLM] Trying ${provider.name}...`);
       const result = await provider.fn();
-      console.log(`[LLM] ${provider.name} succeeded`);
+      logger.info(`[LLM] ${provider.name} succeeded`);
       return result;
     } catch (error: unknown) {
       // Extract error message safely
@@ -248,7 +247,7 @@ export async function chatWithFallback(
         errMsg = String(error);
       }
 
-      console.error(`[LLM] ${provider.name} failed: ${errMsg}`);
+      logger.error(`[LLM] ${provider.name} failed: ${errMsg}`);
       errors.push(`${provider.name}: ${errMsg}`);
 
       // Check for rate limiting indicators
@@ -265,12 +264,12 @@ export async function chatWithFallback(
       }
 
       // Continue to next provider
-      console.log(`[LLM] Falling back to next provider...`);
+      logger.info(`[LLM] Falling back to next provider...`);
     }
   }
 
   // All providers failed
-  console.error(`[LLM] All providers failed:`, errors);
+  logger.error({ errors }, `[LLM] All providers failed:`);
   throw new Error(`All LLM providers failed: ${errors.join("; ")}`);
 }
 
@@ -474,7 +473,7 @@ export async function sendToolResults(
         return await sendGroqToolResults(updatedOptions);
       }
     } catch (error) {
-      console.error(`[LLM] ${p} tool result failed:`, error);
+      logger.error({ error }, `[LLM] ${p} tool result failed:`);
     }
   }
 

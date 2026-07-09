@@ -1,8 +1,10 @@
-# Soniq Core - Project Context
+# Soniq - Project Context
 
 ## Overview
 
 White-label SaaS dashboard for AI voice agents. "Universal Enterprise" theme (Deep Zinc #09090b, not OLED black) that works on any monitor.
+
+Soniq ships a single **universal agent**. There is no per-industry agent catalog: every tenant runs the same flat capability set, and `industry` is a free-form label used for terminology and context only, not a preset selector.
 
 ## Three-Tier Access System
 
@@ -12,75 +14,88 @@ White-label SaaS dashboard for AI voice agents. "Universal Enterprise" theme (De
 | **Admin**     | Business owners (our customers) | Business configuration - agent settings, voice selection, hours, escalation, billing, staff management |
 | **Staff**     | Business employees              | Monitoring only - view dashboard, calls, analytics, take over calls when agent fails                   |
 
+## Universal Capabilities
+
+Defined once in `lib/capabilities.ts` as `UNIVERSAL_CAPABILITY_DEFS`. Every tenant shares the same set; there is no per-industry capability menu.
+
+| Capability            | Notes                                        |
+| --------------------- | -------------------------------------------- |
+| `appointment_booking` | Schedule, reschedule, cancel                 |
+| `order_taking`        | OFF by default                               |
+| `faq`                 | Answer common questions                      |
+| `call_transfer`       | Route to a human                             |
+| `voicemail`           | Capture messages                             |
+| `callbacks`           | Offer/queue callbacks                        |
+
 ## Key Files
 
-| File                            | Purpose                                                                   |
-| ------------------------------- | ------------------------------------------------------------------------- |
-| `types/index.ts`                | Full type system: 3-tier roles, permissions, 27 industries, billing types |
-| `lib/industryPresets.ts`        | 27 industry configs across 6 categories                                   |
-| `lib/mockData.ts`               | Real-time simulation data generators                                      |
-| `context/ConfigContext.tsx`     | State management with `hasPermission()`, `setUserRole()`                  |
-| `components/SetupWizard.tsx`    | 3-step onboarding with industry selection                                 |
-| `components/settings/index.tsx` | Role-based tab visibility with tier checks                                |
+| File                            | Purpose                                                                    |
+| ------------------------------- | -------------------------------------------------------------------------- |
+| `types/index.ts`                | Full type system: 3-tier roles, permissions, billing types                 |
+| `lib/capabilities.ts`           | Universal (flat) capability definitions shared by every tenant             |
+| `lib/terminology.ts`            | Universal terminology and defaults (e.g. deal/contact labels)              |
+| `lib/mockData.ts`               | Real-time simulation data generators                                       |
+| `context/ConfigContext.tsx`     | State management with `hasPermission()`, `setUserRole()`                    |
+| `components/setup/`             | Multi-step onboarding wizard (see below)                                    |
+| `components/settings/index.tsx` | Role-based tab visibility with tier checks                                 |
+
+## Onboarding (Setup Wizard)
+
+Route: `app/setup/[step]/page.tsx`. State lives in `components/setup/SetupContext.tsx`; progress UI in `SetupProgressBar.tsx` and `SelectionCard.tsx`.
+
+Steps (`components/setup/steps/`): Business, Details, Assistant, Capabilities, Hours, Phone, Escalation, Integrations, Review.
 
 ## Settings Tabs
 
-**Admin Tabs:** General, Agent, Voice, Greetings, Responses, Hours, Escalation, Billing
+Tabs are declared in `components/settings/index.tsx` (`ALL_TABS`) and filtered by access tier plus permission. Some tabs open standalone pages under `app/(dashboard)/settings/*` via an `href`.
 
-**Developer Only Tabs:** Pricing, Integrations, Advanced
+**Business:** General, Business Info, Hours, Phone, Billing
+
+**Agent:** Agent, Assistant, Voice, Capabilities, Greetings, Responses, Escalation, Promotions, Instructions
+
+**Platform:** Pricing (developer), Integrations, Advanced (developer)
 
 **Staff:** No settings access (monitoring view only)
 
-## Industries (27 total)
-
-| Category      | Industries                                                                            |
-| ------------- | ------------------------------------------------------------------------------------- |
-| Hospitality   | hotel, motel, vacation_rental, restaurant, catering                                   |
-| Healthcare    | medical, dental, veterinary, mental_health, chiropractic                              |
-| Automotive    | auto_dealer, auto_service, car_rental, towing                                         |
-| Professional  | legal, accounting, insurance, consulting                                              |
-| Personal Care | salon, spa, barbershop, fitness                                                       |
-| Property      | real_estate, property_management, home_services, hvac, plumbing, electrical, cleaning |
-
-## SOW Reference Prices
-
-- Hotel King Room: $139/night
-- Pet Fee: $25/night
-- Cleaning: $120 base / $180 deep
-- Target: 47 bookings
-
 ## Tech Stack
 
-- Next.js 14 (App Router)
-- Tailwind CSS
+- Next.js 16 (App Router)
+- React 19
+- Tailwind CSS 4
 - Lucide React icons
-- React Context + localStorage
+- React Context + localStorage (with Supabase auth/data)
 - TypeScript
 
 ## Component Structure
 
 ```
 components/
-  SetupWizard.tsx          # Onboarding wizard
+  setup/                   # Onboarding wizard (SetupContext, steps/, progress UI)
   dashboard/
     index.tsx              # Dashboard exports
-    Sidebar.tsx            # Navigation sidebar
+    Sidebar.tsx            # Navigation sidebar (brand mark via SoniqMark)
     TopBar.tsx             # Top navigation bar
+    MobileNav.tsx          # Mobile navigation
     SystemHealth.tsx       # System status panel
     Waveform.tsx           # Audio visualization
     ActivityLog.tsx        # Real-time logs
+    SetupIncompleteBanner.tsx
   settings/
     index.tsx              # Settings panel with tier-based tabs
     GeneralTab.tsx         # Business identity (admin)
     AgentTab.tsx           # Agent personality (admin)
     VoiceTab.tsx           # Voice configuration (admin + developer provider controls)
+    VoicePreview.tsx       # Voice preview
     GreetingsTab.tsx       # Custom greetings (admin)
     ResponsesTab.tsx       # Custom AI responses (admin)
+    InstructionsTab.tsx    # Custom AI instructions (admin)
     HoursTab.tsx           # Operating hours (admin)
     EscalationTab.tsx      # Call transfer rules (admin)
     BillingTab.tsx         # Payment & subscription (admin)
     PricingTab.tsx         # Rate configuration (developer)
-    IntegrationsTab.tsx    # Third-party services (developer)
+    IntegrationsTab.tsx    # Third-party services
+  brand/                   # SoniqMark, SoniqWordmark
+  crm/ escalation/ landing/ auth/ demo/ profile/ ...
 ```
 
 ## Key Context Functions
@@ -90,7 +105,7 @@ components/
 hasPermission(permission: Permission): boolean
 setUserRole(role: UserRole): void  // 'developer' | 'admin' | 'staff'
 getUserPermissions(): Permission[]
-switchIndustry(industry: IndustryType): void
+switchIndustry(industry: IndustryType): void  // industry is a free-form string label
 updateConfig<K>(key: K, value: AppConfig[K]): void
 ```
 

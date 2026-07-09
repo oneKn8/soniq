@@ -2,6 +2,7 @@
 // Using Gemini 2.5 Flash for voice AI with native function calling
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { logger } from "../../lib/logger.js";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
@@ -18,11 +19,9 @@ export const genAI = GEMINI_API_KEY
 const MODEL_NAME = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
 if (genAI) {
-  console.log(`[GEMINI] Initialized with model: ${MODEL_NAME}`);
+  logger.info(`[GEMINI] Initialized with model: ${MODEL_NAME}`);
 } else {
-  console.error(
-    "[GEMINI] NOT INITIALIZED - GEMINI_API_KEY is missing or empty",
-  );
+  logger.error("[GEMINI] NOT INITIALIZED - GEMINI_API_KEY is missing or empty");
 }
 
 // Get the generative model with function calling capabilities

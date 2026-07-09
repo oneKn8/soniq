@@ -19,7 +19,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DataTable, Column } from "@/components/crm/shared/DataTable";
 import { Pagination } from "@/components/crm/shared/Pagination";
 import { EmptyNotifications } from "@/components/crm/shared/EmptyState";
-import { useIndustry } from "@/context/IndustryContext";
+import { useTerminology } from "@/lib/terminology";
 import { Badge } from "@/components/ui/badge";
 import {
   listNotifications,
@@ -201,7 +201,7 @@ function TemplateCard({ template }: { template: NotificationTemplate }) {
 // ============================================================================
 
 export default function NotificationsPage() {
-  const { transactionLabel, transactionPluralLabel } = useIndustry();
+  const { transactionLabel, transactionPluralLabel } = useTerminology();
   const [notifications, setNotifications] = React.useState<Notification[]>([]);
   const [templates, setTemplates] = React.useState<NotificationTemplate[]>([]);
   const [total, setTotal] = React.useState(0);

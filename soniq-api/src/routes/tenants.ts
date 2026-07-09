@@ -7,8 +7,33 @@ import {
 import { insertOne, updateOne } from "../services/database/query-helpers.js";
 import { invalidateTenant } from "../services/database/tenant-cache.js";
 import { getAuthTenantId, getAuthUserId } from "../middleware/index.js";
+import { parseJson } from "../lib/validate.js";
+import { z } from "zod";
+import { logger } from "../lib/logger.js";
 
 export const tenantsRoutes = new Hono();
+
+const createTenantSchema = z
+  .object({
+    business_name: z.string().min(1),
+    phone_number: z.string().min(1),
+  })
+  .passthrough();
+
+// Tenant update accepts an arbitrary subset of tenant columns; validate that a
+// JSON object was sent and let the handler strip protected fields.
+const updateTenantSchema = z.record(z.unknown());
+
+const updatePhoneSchema = z
+  .object({ phone_number: z.string().min(1) })
+  .passthrough();
+
+const addMemberSchema = z
+  .object({
+    user_id: z.string().min(1),
+    role: z.string().min(1),
+  })
+  .passthrough();
 
 /** Row type for tenant data */
 interface TenantRow {
@@ -76,7 +101,7 @@ tenantsRoutes.get("/", async (c) => {
 
     return c.json({ tenants });
   } catch (err) {
-    console.error("[tenants] GET / error:", err);
+    logger.error({ err }, "[tenants] GET / error:");
     return c.json(
       { error: err instanceof Error ? err.message : "Database error" },
       500,
@@ -103,7 +128,7 @@ tenantsRoutes.get("/current", async (c) => {
 
     return c.json(data);
   } catch (err) {
-    console.error("[tenants] GET /current error:", err);
+    logger.error({ err }, "[tenants] GET /current error:");
     return c.json({ error: "Tenant not found" }, 404);
   }
 });
@@ -139,7 +164,7 @@ tenantsRoutes.get("/:id", async (c) => {
 
     return c.json({ ...data, userRole: membership.role });
   } catch (err) {
-    console.error("[tenants] GET /:id error:", err);
+    logger.error({ err }, "[tenants] GET /:id error:");
     return c.json(
       { error: err instanceof Error ? err.message : "Database error" },
       500,
@@ -152,18 +177,10 @@ tenantsRoutes.get("/:id", async (c) => {
  * Create a new tenant and link the creating user as owner
  */
 tenantsRoutes.post("/", async (c) => {
-  const body = await c.req.json();
+  const parsed = await parseJson(c, createTenantSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data as Record<string, any>;
   const userId = getAuthUserId(c);
-
-  // Validate required fields
-  if (!body.business_name || !body.phone_number || !body.industry) {
-    return c.json(
-      {
-        error: "Missing required fields: business_name, phone_number, industry",
-      },
-      400,
-    );
-  }
 
   try {
     // Check if phone number is already in use
@@ -180,7 +197,7 @@ tenantsRoutes.post("/", async (c) => {
     const tenant = {
       business_name: body.business_name,
       phone_number: body.phone_number,
-      industry: body.industry,
+      industry: body.industry || "general",
       agent_name: body.agent_name || "AI Assistant",
       agent_personality: body.agent_personality || {
         tone: "professional",
@@ -286,7 +303,7 @@ tenantsRoutes.post("/", async (c) => {
 
     return c.json(tenantData, 201);
   } catch (err) {
-    console.error("[tenants] POST / error:", err);
+    logger.error({ err }, "[tenants] POST / error:");
     return c.json(
       { error: err instanceof Error ? err.message : "Database error" },
       500,
@@ -300,7 +317,9 @@ tenantsRoutes.post("/", async (c) => {
  */
 tenantsRoutes.put("/:id", async (c) => {
   const id = c.req.param("id");
-  const body = await c.req.json();
+  const parsed = await parseJson(c, updateTenantSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data as Record<string, any>;
   const userId = getAuthUserId(c);
 
   try {
@@ -320,19 +339,8 @@ tenantsRoutes.put("/:id", async (c) => {
     delete body.created_at;
     delete body.phone_number; // Phone number changes need special handling
 
-    // Validate industry if provided
-    const VALID_INDUSTRIES = [
-      "hotel",
-      "motel",
-      "restaurant",
-      "medical",
-      "dental",
-      "salon",
-      "auto_service",
-    ];
-    if (body.industry && !VALID_INDUSTRIES.includes(body.industry)) {
-      return c.json({ error: "Invalid industry type" }, 400);
-    }
+    // The industry column stays writable but is no longer validated or
+    // branched on in code (the platform is industry-neutral).
 
     body.updated_at = new Date().toISOString();
 
@@ -347,7 +355,7 @@ tenantsRoutes.put("/:id", async (c) => {
 
     return c.json(data);
   } catch (err) {
-    console.error("[tenants] PUT /:id error:", err);
+    logger.error({ err }, "[tenants] PUT /:id error:");
     return c.json(
       { error: err instanceof Error ? err.message : "Database error" },
       500,
@@ -389,7 +397,7 @@ tenantsRoutes.delete("/:id", async (c) => {
 
     return c.json({ success: true });
   } catch (err) {
-    console.error("[tenants] DELETE /:id error:", err);
+    logger.error({ err }, "[tenants] DELETE /:id error:");
     return c.json(
       { error: err instanceof Error ? err.message : "Database error" },
       500,
@@ -404,7 +412,9 @@ tenantsRoutes.delete("/:id", async (c) => {
  */
 tenantsRoutes.put("/:id/phone", async (c) => {
   const id = c.req.param("id");
-  const body = await c.req.json();
+  const parsed = await parseJson(c, updatePhoneSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
   const userId = getAuthUserId(c);
 
   try {
@@ -417,10 +427,6 @@ tenantsRoutes.put("/:id/phone", async (c) => {
 
     if (!membership || membership.role !== "owner") {
       return c.json({ error: "Forbidden - owner role required" }, 403);
-    }
-
-    if (!body.phone_number) {
-      return c.json({ error: "phone_number is required" }, 400);
     }
 
     // Normalize phone number (ensure +1 prefix for US numbers)
@@ -465,7 +471,7 @@ tenantsRoutes.put("/:id/phone", async (c) => {
 
     return c.json(data);
   } catch (err) {
-    console.error("[tenants] PUT /:id/phone error:", err);
+    logger.error({ err }, "[tenants] PUT /:id/phone error:");
     return c.json(
       { error: err instanceof Error ? err.message : "Database error" },
       500,
@@ -479,7 +485,9 @@ tenantsRoutes.put("/:id/phone", async (c) => {
  */
 tenantsRoutes.post("/:id/members", async (c) => {
   const tenantId = c.req.param("id");
-  const body = await c.req.json();
+  const parsed = await parseJson(c, addMemberSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
   const userId = getAuthUserId(c);
 
   try {
@@ -492,10 +500,6 @@ tenantsRoutes.post("/:id/members", async (c) => {
 
     if (!membership || !["owner", "admin"].includes(membership.role)) {
       return c.json({ error: "Forbidden" }, 403);
-    }
-
-    if (!body.user_id || !body.role) {
-      return c.json({ error: "user_id and role are required" }, 400);
     }
 
     // Can't add owner role unless you are owner
@@ -514,7 +518,7 @@ tenantsRoutes.post("/:id/members", async (c) => {
 
     return c.json(data, 201);
   } catch (err) {
-    console.error("[tenants] POST /:id/members error:", err);
+    logger.error({ err }, "[tenants] POST /:id/members error:");
 
     // Check for unique constraint violation (user already a member)
     const pgError = err as { code?: string };
@@ -563,7 +567,7 @@ tenantsRoutes.get("/:id/members", async (c) => {
 
     return c.json({ members: data });
   } catch (err) {
-    console.error("[tenants] GET /:id/members error:", err);
+    logger.error({ err }, "[tenants] GET /:id/members error:");
     return c.json(
       { error: err instanceof Error ? err.message : "Database error" },
       500,
@@ -630,7 +634,7 @@ tenantsRoutes.delete("/:id/members/:memberId", async (c) => {
 
     return c.json({ success: true });
   } catch (err) {
-    console.error("[tenants] DELETE /:id/members/:memberId error:", err);
+    logger.error({ err }, "[tenants] DELETE /:id/members/:memberId error:");
     return c.json(
       { error: err instanceof Error ? err.message : "Database error" },
       500,

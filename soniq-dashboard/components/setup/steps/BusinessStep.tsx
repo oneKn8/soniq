@@ -2,25 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useSetup } from "../SetupContext";
-import { SelectionCard } from "../SelectionCard";
-import { INDUSTRY_PRESETS } from "@/lib/industryPresets";
-import type { IndustryType } from "@/types";
 
 export function BusinessStep() {
   const router = useRouter();
   const { state, dispatch, saveStep, goToNextStep } = useSetup();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const industries = Object.values(INDUSTRY_PRESETS);
-
   const canContinue =
     state.businessData.name.trim() !== "" &&
-    state.businessData.industry !== null &&
     state.businessData.city.trim() !== "";
 
   const handleContinue = async () => {
@@ -33,13 +27,6 @@ export function BusinessStep() {
       router.push("/setup/capabilities");
     }
     setIsSubmitting(false);
-  };
-
-  const handleSelectIndustry = (industry: IndustryType) => {
-    dispatch({
-      type: "SET_BUSINESS_DATA",
-      payload: { industry },
-    });
   };
 
   return (
@@ -68,24 +55,6 @@ export function BusinessStep() {
             })
           }
         />
-      </div>
-
-      {/* Industry selection */}
-      <div className="space-y-4">
-        <Label>What type of business do you run?</Label>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {industries.map((industry) => (
-            <SelectionCard
-              key={industry.id}
-              selected={state.businessData.industry === industry.id}
-              onClick={() => handleSelectIndustry(industry.id)}
-              icon={Building2}
-              title={industry.label}
-              description={industry.description}
-            />
-          ))}
-        </div>
       </div>
 
       {/* Location */}

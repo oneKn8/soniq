@@ -3,6 +3,7 @@
 
 import Groq from "groq-sdk";
 import type { GroqConfig } from "../../types/voice.js";
+import { logger } from "../../lib/logger.js";
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
@@ -19,9 +20,9 @@ const TOOL_MODEL =
   process.env.GROQ_TOOL_MODEL || process.env.GROQ_MODEL || "openai/gpt-oss-20b";
 
 if (groqClient) {
-  console.log(`[GROQ] Initialized - Chat: ${CHAT_MODEL}, Tool: ${TOOL_MODEL}`);
+  logger.info(`[GROQ] Initialized - Chat: ${CHAT_MODEL}, Tool: ${TOOL_MODEL}`);
 } else {
-  console.error("[GROQ] NOT INITIALIZED - GROQ_API_KEY is missing or empty");
+  logger.error("[GROQ] NOT INITIALIZED - GROQ_API_KEY is missing or empty");
 }
 
 // Configuration for chat (no tools needed) - faster, cheaper

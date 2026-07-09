@@ -14,8 +14,24 @@ import {
 } from "../services/availability/availability-service.js";
 
 import { getAuthTenantId } from "../middleware/index.js";
+import { parseJson } from "../lib/validate.js";
 
 export const availabilityRoutes = new Hono();
+
+// Partial slot update: every field optional; unknown keys are stripped so a
+// dynamic UPDATE can never target arbitrary columns. Fields mirror the
+// updatable columns of AvailabilitySlot.
+const updateSlotSchema = z.object({
+  slot_date: z.string().optional(),
+  start_time: z.string().optional(),
+  end_time: z.string().optional(),
+  slot_type: z.string().optional(),
+  resource_id: z.string().uuid().optional(),
+  total_capacity: z.number().positive().optional(),
+  booked_count: z.number().nonnegative().optional(),
+  price_override_cents: z.number().optional(),
+  notes: z.string().optional(),
+});
 
 function getTenantId(c: Parameters<typeof getAuthTenantId>[0]): string {
   return getAuthTenantId(c);
@@ -117,9 +133,10 @@ availabilityRoutes.put("/slots/:id", async (c) => {
   try {
     const tenantId = getTenantId(c);
     const id = c.req.param("id");
-    const body = await c.req.json();
+    const parsed = await parseJson(c, updateSlotSchema);
+    if (!parsed.success) return parsed.response;
 
-    const slot = await updateSlot(tenantId, id, body);
+    const slot = await updateSlot(tenantId, id, parsed.data);
     return c.json(slot);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

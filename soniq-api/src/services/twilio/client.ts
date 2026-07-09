@@ -1,4 +1,5 @@
 import Twilio from "twilio";
+import { logger } from "../../lib/logger.js";
 
 let twilioClient: Twilio.Twilio | null = null;
 
@@ -14,12 +15,12 @@ export function getTwilioClient(): Twilio.Twilio | null {
   const authToken = process.env.TWILIO_AUTH_TOKEN;
 
   if (!accountSid || !authToken) {
-    console.warn("[TWILIO] Missing credentials, SMS disabled");
+    logger.warn("[TWILIO] Missing credentials, SMS disabled");
     return null;
   }
 
   twilioClient = Twilio(accountSid, authToken);
-  console.log("[TWILIO] Client initialized");
+  logger.info("[TWILIO] Client initialized");
 
   return twilioClient;
 }

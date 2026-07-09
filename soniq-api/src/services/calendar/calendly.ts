@@ -16,6 +16,7 @@ import type {
 } from "./types.js";
 import type { TenantIntegration } from "../../types/database.js";
 import { updateOne } from "../database/query-helpers.js";
+import { logger } from "../../lib/logger.js";
 
 const CALENDLY_API_BASE = "https://api.calendly.com";
 
@@ -133,7 +134,7 @@ export class CalendlyService implements CalendarService {
       // Generate available slots
       return this.generateAvailableSlots(dateRange, busyPeriods);
     } catch (error) {
-      console.error("[CALENDLY] Error checking availability:", error);
+      logger.error({ error }, "[CALENDLY] Error checking availability:");
       throw error;
     }
   }
@@ -197,7 +198,7 @@ export class CalendlyService implements CalendarService {
         endTime: event.end_time,
       }));
     } catch (error) {
-      console.error("[CALENDLY] Error getting bookings:", error);
+      logger.error({ error }, "[CALENDLY] Error getting bookings:");
       throw error;
     }
   }

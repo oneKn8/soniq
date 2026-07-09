@@ -1,4 +1,5 @@
-// Latency Metrics Collector
+
+import { logger } from "./logger.js";// Latency Metrics Collector
 // Tracks voice pipeline performance for optimization
 
 export interface LatencyMetrics {
@@ -54,17 +55,14 @@ class MetricsCollector {
 
     // Log warning if exceeding targets
     if (metrics.e2eLatency > LATENCY_TARGETS.e2eLatency) {
-      console.warn(
-        `[METRICS] High latency: ${metrics.e2eLatency}ms (target: ${LATENCY_TARGETS.e2eLatency}ms)`,
-        {
+      logger.warn({
           callSid: metrics.callSid,
           breakdown: {
             stt: metrics.sttFinal,
             llm: metrics.llmTTFT,
             tts: metrics.ttsTTFA,
           },
-        },
-      );
+        }, `[METRICS] High latency: ${metrics.e2eLatency}ms (target: ${LATENCY_TARGETS.e2eLatency}ms)`);
     }
   }
 

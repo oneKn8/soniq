@@ -161,12 +161,12 @@ const content: Record<string, { title: string; content: React.ReactNode }> = {
           <Step
             number={1}
             title="Enter your business information"
-            description="Tell us your business name, industry, and location. This helps your AI assistant answer questions accurately."
+            description="Tell us your business name and location. This helps your AI assistant answer questions accurately."
           />
           <Step
             number={2}
-            title="Choose your industry"
-            description="Select your industry from our list (dental, salon, restaurant, etc.). We'll automatically set up common questions and responses for your type of business."
+            title="Choose your capabilities"
+            description="Turn on what your agent should handle: appointment booking, order or request taking, FAQs, call transfers, and voicemail. Each one is ready to use out of the box."
           />
           <Step
             number={3}

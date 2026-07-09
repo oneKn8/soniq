@@ -14,8 +14,8 @@ import {
 } from "../services/deals/deal-service.js";
 import { DealFilters, PaginationParams } from "../types/crm.js";
 import { getAuthTenantId } from "../middleware/index.js";
-import { getTenantById } from "../services/database/tenant-cache.js";
-import { getStagesForIndustry } from "../config/industry-pipeline.js";
+import { getStages } from "../config/universal-pipeline.js";
+import { logger } from "../lib/logger.js";
 
 export const dealsRoutes = new Hono();
 
@@ -51,12 +51,6 @@ const updateStageSchema = z.object({
 // Helper to get tenant ID from auth context
 function getTenantId(c: Parameters<typeof getAuthTenantId>[0]): string {
   return getAuthTenantId(c);
-}
-
-// Helper to resolve tenant industry (defaults to "default" if tenant not cached)
-function getTenantIndustry(tenantId: string): string {
-  const tenant = getTenantById(tenantId);
-  return tenant?.industry || "default";
 }
 
 // ============================================================================
@@ -106,7 +100,7 @@ dealsRoutes.get("/", async (c) => {
     if (message.includes("X-Tenant-ID")) {
       return c.json({ error: message }, 400);
     }
-    console.error("[DEALS] List error:", message);
+    logger.error({ message }, "[DEALS] List error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -122,14 +116,13 @@ dealsRoutes.get("/", async (c) => {
 dealsRoutes.get("/pipeline", async (c) => {
   try {
     const tenantId = getTenantId(c);
-    const industry = getTenantIndustry(tenantId);
 
-    const pipeline = await getPipeline(tenantId, industry);
+    const pipeline = await getPipeline(tenantId);
 
     return c.json({ stages: pipeline });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[DEALS] Pipeline error:", message);
+    logger.error({ message }, "[DEALS] Pipeline error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -156,7 +149,7 @@ dealsRoutes.get("/:id", async (c) => {
     return c.json(deal);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[DEALS] Get error:", message);
+    logger.error({ message }, "[DEALS] Get error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -168,7 +161,6 @@ dealsRoutes.get("/:id", async (c) => {
 dealsRoutes.post("/", async (c) => {
   try {
     const tenantId = getTenantId(c);
-    const industry = getTenantIndustry(tenantId);
     const body = await c.req.json();
 
     const parsed = createDealSchema.safeParse(body);
@@ -182,27 +174,23 @@ dealsRoutes.post("/", async (c) => {
       );
     }
 
-    const deal = await createDeal(
-      tenantId,
-      {
-        name: parsed.data.name,
-        description: parsed.data.description ?? undefined,
-        company: parsed.data.company ?? undefined,
-        stage: parsed.data.stage,
-        amount_cents: parsed.data.amount_cents,
-        expected_close: parsed.data.expected_close ?? undefined,
-        contact_id: parsed.data.contact_id ?? undefined,
-        call_id: parsed.data.call_id ?? undefined,
-        source: parsed.data.source,
-        created_by: parsed.data.created_by ?? undefined,
-      },
-      industry,
-    );
+    const deal = await createDeal(tenantId, {
+      name: parsed.data.name,
+      description: parsed.data.description ?? undefined,
+      company: parsed.data.company ?? undefined,
+      stage: parsed.data.stage,
+      amount_cents: parsed.data.amount_cents,
+      expected_close: parsed.data.expected_close ?? undefined,
+      contact_id: parsed.data.contact_id ?? undefined,
+      call_id: parsed.data.call_id ?? undefined,
+      source: parsed.data.source,
+      created_by: parsed.data.created_by ?? undefined,
+    });
 
     return c.json(deal, 201);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[DEALS] Create error:", message);
+    logger.error({ message }, "[DEALS] Create error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -244,7 +232,7 @@ dealsRoutes.put("/:id", async (c) => {
     if (message.includes("not found")) {
       return c.json({ error: message }, 404);
     }
-    console.error("[DEALS] Update error:", message);
+    logger.error({ message }, "[DEALS] Update error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -256,7 +244,6 @@ dealsRoutes.put("/:id", async (c) => {
 dealsRoutes.patch("/:id/stage", async (c) => {
   try {
     const tenantId = getTenantId(c);
-    const industry = getTenantIndustry(tenantId);
     const id = c.req.param("id");
     const body = await c.req.json();
 
@@ -271,14 +258,12 @@ dealsRoutes.patch("/:id/stage", async (c) => {
       );
     }
 
-    // Validate stage exists in the tenant's industry pipeline
-    const validStages = new Set(
-      getStagesForIndustry(industry).map((s) => s.id),
-    );
+    // Validate stage exists in the universal pipeline
+    const validStages = new Set(getStages().map((s) => s.id));
     if (!validStages.has(parsed.data.stage)) {
       return c.json(
         {
-          error: `Invalid stage "${parsed.data.stage}" for industry "${industry}". Valid stages: ${[...validStages].join(", ")}`,
+          error: `Invalid stage "${parsed.data.stage}". Valid stages: ${[...validStages].join(", ")}`,
         },
         400,
       );
@@ -297,7 +282,7 @@ dealsRoutes.patch("/:id/stage", async (c) => {
     if (message.includes("not found")) {
       return c.json({ error: message }, 404);
     }
-    console.error("[DEALS] Stage update error:", message);
+    logger.error({ message }, "[DEALS] Stage update error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -319,7 +304,7 @@ dealsRoutes.delete("/:id", async (c) => {
     if (message.includes("not found")) {
       return c.json({ error: message }, 404);
     }
-    console.error("[DEALS] Archive error:", message);
+    logger.error({ message }, "[DEALS] Archive error:");
     return c.json({ error: message }, 500);
   }
 });

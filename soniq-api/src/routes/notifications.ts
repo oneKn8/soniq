@@ -17,6 +17,21 @@ import {
 import type { NotificationTemplate } from "../types/crm.js";
 
 import { getAuthTenantId } from "../middleware/index.js";
+import { parseJson } from "../lib/validate.js";
+
+const previewSchema = z
+  .object({
+    template_id: z.string().optional(),
+    notification_type: z.string().optional(),
+    channel: z.string().optional(),
+    variables: z.record(z.unknown()).optional(),
+  })
+  .passthrough();
+
+// Template update / preferences accept a subset of columns; validate that a
+// JSON object was sent and let the handler strip protected fields.
+const templateUpdateSchema = z.record(z.unknown());
+const preferencesSchema = z.record(z.unknown());
 
 export const notificationsRoutes = new Hono();
 
@@ -243,9 +258,9 @@ notificationsRoutes.post("/send", async (c) => {
 notificationsRoutes.post("/preview", async (c) => {
   try {
     const tenantId = getTenantId(c);
-    const body = await c.req.json();
-
-    const { template_id, notification_type, channel, variables } = body;
+    const parsed = await parseJson(c, previewSchema);
+    if (!parsed.success) return parsed.response;
+    const { template_id, notification_type, channel, variables } = parsed.data;
 
     let template: NotificationTemplate | null = null;
     if (template_id) {
@@ -274,7 +289,11 @@ notificationsRoutes.post("/preview", async (c) => {
         };
       }
     } else if (notification_type && channel) {
-      template = await getDefaultTemplate(tenantId, notification_type, channel);
+      template = await getDefaultTemplate(
+        tenantId,
+        notification_type as Parameters<typeof getDefaultTemplate>[1],
+        channel as Parameters<typeof getDefaultTemplate>[2],
+      );
     }
 
     if (!template) {
@@ -331,7 +350,9 @@ notificationsRoutes.put("/templates/:id", async (c) => {
   try {
     const tenantId = getTenantId(c);
     const id = c.req.param("id");
-    const body = await c.req.json();
+    const parsed = await parseJson(c, templateUpdateSchema);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data as Record<string, any>;
 
     // Remove protected fields
     delete body.id;
@@ -358,7 +379,9 @@ notificationsRoutes.put("/templates/:id", async (c) => {
 notificationsRoutes.put("/preferences", async (c) => {
   try {
     const tenantId = getTenantId(c);
-    const body = await c.req.json();
+    const parsed = await parseJson(c, preferencesSchema);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data;
 
     const data = await upsert<NotificationPreferenceRow>(
       "notification_preferences",

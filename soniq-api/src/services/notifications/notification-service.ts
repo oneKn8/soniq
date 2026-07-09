@@ -8,6 +8,7 @@ import {
   Contact,
 } from "../../types/crm.js";
 import { Booking } from "../../types/database.js";
+import { logger } from "../../lib/logger.js";
 
 // ============================================================================
 // SEND NOTIFICATIONS
@@ -164,7 +165,7 @@ export async function queueNotification(
 
   // If not scheduled, send immediately
   if (!data.scheduled_at) {
-    processNotification(notification.id).catch(console.error);
+    processNotification(notification.id).catch((err) => logger.error({ err }, "unhandled error"));
   }
 
   return notification;
@@ -391,9 +392,7 @@ async function sendSms(notification: Notification): Promise<void> {
 async function sendEmail(notification: Notification): Promise<void> {
   const resendApiKey = process.env.RESEND_API_KEY;
   if (!resendApiKey) {
-    console.warn(
-      "[Notification] RESEND_API_KEY not configured, skipping email",
-    );
+    logger.warn("[Notification] RESEND_API_KEY not configured, skipping email");
     return;
   }
 

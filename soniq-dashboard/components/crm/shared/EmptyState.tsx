@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useIndustry } from "@/context/IndustryContext";
+import { useTerminology } from "@/lib/terminology";
 import { cn } from "@/lib/utils";
 
 interface EmptyStateProps {
@@ -174,7 +174,7 @@ export function EmptyCallsState({ searchQuery }: { searchQuery?: string }) {
 }
 
 export function EmptyContactsState({ onAdd }: { onAdd?: () => void } = {}) {
-  const { customerPluralLabel } = useIndustry();
+  const { customerPluralLabel } = useTerminology();
   return (
     <EmptyState
       icon={Users}
@@ -187,7 +187,7 @@ export function EmptyContactsState({ onAdd }: { onAdd?: () => void } = {}) {
 }
 
 export function EmptyBookingsState() {
-  const { transactionPluralLabel } = useIndustry();
+  const { transactionPluralLabel } = useTerminology();
   return (
     <EmptyState
       icon={Calendar}

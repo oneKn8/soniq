@@ -1,0 +1,35 @@
+# gitleaks config for Soniq.
+# Extends the default ruleset, but allowlists files that are templates / fixtures
+# by convention (they contain PLACEHOLDER values, not real secrets) plus the
+# obvious placeholder token patterns. Real code is still scanned.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Templates, docs, and test fixtures contain placeholders, not real secrets"
+
+# Path-based allowlist (regex against the file path).
+paths = [
+  '''.*\.example$''',
+  '''.*\.sample$''',
+  '''.*\.template$''',
+  '''.*\.example\.yml$''',
+  '''.*\.selfhost\.example$''',
+  '''^docs/.*''',
+  '''^soniq-api/docs/.*''',
+  '''^deploy/.*''',
+  '''.*\.test\.(ts|tsx|js)$''',
+  '''.*/tests/.*''',
+  '''^soniq-agent/livekit/.*\.example$''',
+]
+
+# Token-based allowlist: obvious placeholder values used across .example files
+# and test fixtures. Real secrets will not match these literal prefixes.
+regexes = [
+  '''replace-with-[a-z0-9-]+''',
+  '''your-[a-z0-9-]+''',
+  '''APIxxxxxxxxxxxxxxxxxxxxxxx''',
+  '''devkey''',
+  '''deadbeef-cafe-4000-a000-[0-9a-f]+''',
+]

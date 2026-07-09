@@ -1,4 +1,4 @@
-// Soniq Core - Production Type System
+// Soniq - Production Type System
 // Voice Logic Engine Schema
 
 // ============================================================================
@@ -137,24 +137,9 @@ export interface Invoice {
 // INDUSTRY CONFIGURATION
 // ============================================================================
 
-export type IndustryType =
-  // Hospitality
-  | "hotel"
-  | "motel"
-  | "restaurant"
-  // Healthcare
-  | "medical"
-  | "dental"
-  // Personal Care
-  | "salon"
-  // Automotive
-  | "auto_service";
-
-export type IndustryCategory =
-  | "hospitality"
-  | "healthcare"
-  | "personal_care"
-  | "automotive";
+// Industry is retained as a free-form string only (the DB column still exists);
+// the app no longer branches on it. New tenants default to "general".
+export type IndustryType = string;
 
 export interface CapabilityQuestion {
   id: string;
@@ -173,30 +158,6 @@ export interface CapabilityDefinition {
   icon: string;
   category: "core" | "communication" | "advanced";
   questions: CapabilityQuestion[];
-}
-
-export interface IndustryPreset {
-  id: IndustryType;
-  category: IndustryCategory;
-  label: string;
-  description: string;
-  icon: string;
-  popular: boolean; // Show in quick-select
-  metrics: MetricDefinition[];
-  intents: IntentDefinition[];
-  defaultPricing: PricingConfig;
-  terminology: IndustryTerminology;
-  greetingTemplates: string[];
-  faqTemplates: FAQTemplate[];
-  // Capability configuration (optional for backward compatibility)
-  availableCapabilities?: string[];
-  defaultCapabilities?: string[];
-  capabilities?: CapabilityDefinition[];
-  // Short labels for mobile navigation tabs
-  navLabels?: { calendarTab: string };
-  // CRM pipeline configuration
-  pipeline: PipelineConfig;
-  taskTypes: IndustryTaskType[];
 }
 
 export interface IndustryTerminology {

@@ -24,12 +24,10 @@ services:
       - GROQ_CHAT_MODEL=${GROQ_CHAT_MODEL:-llama-3.1-8b-instant}
       - GROQ_TOOL_MODEL=${GROQ_TOOL_MODEL:-llama-3.3-70b-versatile}
       # Voice pipeline
-      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
       - CARTESIA_API_KEY=${CARTESIA_API_KEY}
       - SIGNALWIRE_PROJECT_ID=${SIGNALWIRE_PROJECT_ID}
       - SIGNALWIRE_API_TOKEN=${SIGNALWIRE_API_TOKEN}
       - SIGNALWIRE_SPACE_URL=${SIGNALWIRE_SPACE_URL}
-      - VOICE_PROVIDER=custom
       - BACKEND_URL=${BACKEND_URL:-http://localhost:3100}
       # Optional: Together AI for fine-tuned models
       - TOGETHER_API_KEY=${TOGETHER_API_KEY:-}
@@ -132,8 +130,8 @@ services:
       dockerfile: Dockerfile
     environment:
       - LIVEKIT_URL=ws://172.17.0.1:7880
-      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY:-APIc4ecf671a4b0eab56ceb2cd4}
-      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET:-7b284f366c10a9f0319a29352402a300a01362e960a84c492baaaeedfc970386}
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY:?set LIVEKIT_API_KEY in .env}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET:?set LIVEKIT_API_SECRET in .env}
       - INTERNAL_API_URL=http://api:3100
       - INTERNAL_API_KEY=${INTERNAL_API_KEY}
       - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}

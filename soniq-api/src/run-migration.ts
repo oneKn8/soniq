@@ -3,6 +3,7 @@
  */
 import "dotenv/config";
 import { query, closePool } from "./services/database/client.js";
+import { logger } from "./lib/logger.js";
 
 const migration = `
 CREATE TABLE IF NOT EXISTS pending_bookings (
@@ -29,7 +30,7 @@ CREATE INDEX IF NOT EXISTS idx_pending_bookings_call ON pending_bookings(call_id
 `;
 
 async function runMigration() {
-  console.log("Running migration 014_pending_bookings...");
+  logger.info("Running migration 014_pending_bookings...");
 
   try {
     // Check if table exists by querying information_schema
@@ -44,18 +45,18 @@ async function runMigration() {
     const tableExists = result.rows[0]?.exists;
 
     if (tableExists) {
-      console.log("Table pending_bookings already exists!");
+      logger.info("Table pending_bookings already exists!");
     } else {
-      console.log("Creating pending_bookings table...");
+      logger.info("Creating pending_bookings table...");
       await query(migration);
-      console.log("Migration completed successfully!");
+      logger.info("Migration completed successfully!");
     }
   } catch (error) {
-    console.error("Migration failed:", error);
+    logger.error({ error }, "Migration failed:");
     process.exit(1);
   } finally {
     await closePool();
   }
 }
 
-runMigration().catch(console.error);
+runMigration().catch((err) => logger.error({ err }, "unhandled error"));

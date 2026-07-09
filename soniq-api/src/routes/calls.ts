@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { tenantQueryOne, tenantQueryAll } from "../services/database/client.js";
 import { getAuthTenantId } from "../middleware/index.js";
+import { logger } from "../lib/logger.js";
 
 export const callsRoutes = new Hono();
 
@@ -136,7 +137,7 @@ callsRoutes.get("/", async (c) => {
       offset,
     });
   } catch (error) {
-    console.error("[CALLS] List error:", error);
+    logger.error({ error }, "[CALLS] List error:");
     const message = error instanceof Error ? error.message : "Unknown error";
     return c.json({ error: message }, 500);
   }

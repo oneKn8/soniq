@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { useIndustry } from "@/context/IndustryContext";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -9,7 +8,6 @@ import {
   Calendar,
   BarChart3,
   Settings,
-  Headphones,
   Users,
   Bell,
 } from "lucide-react";
@@ -24,12 +22,6 @@ interface NavItem {
 
 // Extended menu items for "More" sheet
 const MORE_ITEMS: NavItem[] = [
-  {
-    id: "workstation",
-    label: "Workstation",
-    icon: Headphones,
-    href: "/workstation",
-  },
   { id: "contacts", label: "Contacts", icon: Users, href: "/contacts" },
   { id: "notifications", label: "Alerts", icon: Bell, href: "/notifications" },
   { id: "settings", label: "Settings", icon: Settings, href: "/settings" },
@@ -38,7 +30,6 @@ const MORE_ITEMS: NavItem[] = [
 export default function MobileNav() {
   const router = useRouter();
   const pathname = usePathname();
-  const { preset } = useIndustry();
   const [showMore, setShowMore] = useState(false);
 
   const NAV_ITEMS: NavItem[] = [
@@ -51,7 +42,7 @@ export default function MobileNav() {
     { id: "calls", label: "Calls", icon: Phone, href: "/calls" },
     {
       id: "calendar",
-      label: preset.navLabels?.calendarTab || "Book",
+      label: "Calendar",
       icon: Calendar,
       href: "/calendar",
     },

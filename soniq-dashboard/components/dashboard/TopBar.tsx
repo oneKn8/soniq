@@ -3,7 +3,7 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useConfig } from "@/context/ConfigContext";
-import { useIndustry } from "@/context/IndustryContext";
+import { useTenant } from "@/context/TenantContext";
 import { useAuth } from "@/context/AuthContext";
 import {
   Circle,
@@ -26,7 +26,7 @@ import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 export default function TopBar() {
   const router = useRouter();
   const { config, metrics } = useConfig();
-  const { industryLabel } = useIndustry();
+  const { currentTenant } = useTenant();
   const { user, signOut } = useAuth();
   const [currentTime, setCurrentTime] = React.useState(new Date());
   const [showUserMenu, setShowUserMenu] = React.useState(false);
@@ -172,9 +172,9 @@ export default function TopBar() {
 
       {/* Right: Time, Theme, User */}
       <div className="flex items-center gap-2 sm:gap-4">
-        {/* Industry Tag - Hidden on small screens */}
+        {/* Business Name Tag - Hidden on small screens */}
         <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded-md bg-muted text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          {industryLabel}
+          {currentTenant?.business_name ?? "Business"}
         </span>
 
         {/* Theme Toggle */}

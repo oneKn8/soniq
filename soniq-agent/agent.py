@@ -26,6 +26,7 @@ from tools import (
     create_order,
     transfer_to_human,
     end_call,
+    log_note,
 )
 from tenant_config import get_tenant_by_phone
 from call_logger import log_call
@@ -38,15 +39,27 @@ class SoniqAgent(Agent):
     """Voice agent that handles inbound calls for Soniq tenants."""
 
     def __init__(self, tenant_config: dict, caller_phone: str, job_ctx: JobContext) -> None:
+        # Always-on tools; log_note is ungated.
+        tools = [
+            check_availability,
+            create_booking,
+            transfer_to_human,
+            end_call,
+            log_note,
+        ]
+
+        # Order/request taking is optional and OFF by default. Offer the
+        # create_order tool only when the tenant enabled the order_taking
+        # capability. Legacy capability strings "takeaway" and "orders" are
+        # treated as aliases (no migration).
+        capabilities = tenant_config.get("capabilities") or []
+        order_aliases = {"order_taking", "takeaway", "orders"}
+        if any(cap in order_aliases for cap in capabilities):
+            tools.append(create_order)
+
         super().__init__(
             instructions=tenant_config["system_prompt"],
-            tools=[
-                check_availability,
-                create_booking,
-                create_order,
-                transfer_to_human,
-                end_call,
-            ],
+            tools=tools,
         )
         self.tenant_config = tenant_config
         self.caller_phone = caller_phone

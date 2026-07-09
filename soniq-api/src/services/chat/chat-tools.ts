@@ -5,6 +5,7 @@ import { SchemaType, type FunctionDeclaration } from "@google/generative-ai";
 import type { ToolExecutionContext } from "../../types/voice.js";
 import { executeTool as executeVoiceTool } from "../gemini/tools.js";
 import { updateVisitorInfo, type VisitorInfo } from "./conversation-store.js";
+import { logger } from "../../lib/logger.js";
 
 // Shared tool declarations (used by both voice agent and chat widget)
 const sharedFunctions: FunctionDeclaration[] = [
@@ -191,10 +192,7 @@ async function executeCollectContactInfo(
   // Update session with visitor info
   updateVisitorInfo(context.sessionId, info);
 
-  console.log(
-    `[CHAT] Collected contact info for session ${context.sessionId}:`,
-    info,
-  );
+  logger.info({ info }, `[CHAT] Collected contact info for session ${context.sessionId}:`);
 
   return {
     success: true,
@@ -211,9 +209,7 @@ async function executeRequestCallback(
   const reason = args.reason as string;
   const preferredTime = args.preferred_time as string | undefined;
 
-  console.log(
-    `[CHAT] Callback requested - Tenant: ${context.tenantId}, Session: ${context.sessionId}, Reason: ${reason}, Time: ${preferredTime || "any"}`,
-  );
+  logger.info(`[CHAT] Callback requested - Tenant: ${context.tenantId}, Session: ${context.sessionId}, Reason: ${reason}, Time: ${preferredTime || "any"}`);
 
   return {
     success: true,

@@ -13,6 +13,7 @@ import {
   rejectPendingBooking,
   convertPendingToConfirmed,
 } from "../services/calendar/pending.js";
+import { logger } from "../lib/logger.js";
 
 export const pendingBookingsRoutes = new Hono();
 
@@ -46,7 +47,7 @@ pendingBookingsRoutes.get("/", async (c) => {
     return c.json({ bookings });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[PENDING_BOOKINGS] GET / error:", error);
+    logger.error({ error }, "[PENDING_BOOKINGS] GET / error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -72,7 +73,7 @@ pendingBookingsRoutes.get("/stats", async (c) => {
     return c.json({ stats });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[PENDING_BOOKINGS] GET /stats error:", error);
+    logger.error({ error }, "[PENDING_BOOKINGS] GET /stats error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -103,7 +104,7 @@ pendingBookingsRoutes.put("/:id/confirm", async (c) => {
     return c.json({ success: true, status: "confirmed" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[PENDING_BOOKINGS] PUT /:id/confirm error:", error);
+    logger.error({ error }, "[PENDING_BOOKINGS] PUT /:id/confirm error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -145,7 +146,7 @@ pendingBookingsRoutes.put("/:id/reject", async (c) => {
     return c.json({ success: true, status: "rejected" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[PENDING_BOOKINGS] PUT /:id/reject error:", error);
+    logger.error({ error }, "[PENDING_BOOKINGS] PUT /:id/reject error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -199,7 +200,7 @@ pendingBookingsRoutes.post("/:id/convert", async (c) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[PENDING_BOOKINGS] POST /:id/convert error:", error);
+    logger.error({ error }, "[PENDING_BOOKINGS] POST /:id/convert error:");
     return c.json({ error: message }, 500);
   }
 });
@@ -222,7 +223,7 @@ pendingBookingsRoutes.get("/:id", async (c) => {
     return c.json({ booking });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[PENDING_BOOKINGS] GET /:id error:", error);
+    logger.error({ error }, "[PENDING_BOOKINGS] GET /:id error:");
     return c.json({ error: message }, 500);
   }
 });

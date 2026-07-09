@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useTenant } from "@/context/TenantContext";
 import { get, put } from "@/lib/api/client";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -13,125 +12,43 @@ import {
   Phone,
   MessageSquare,
   FileQuestion,
-  AlertTriangle,
-  Megaphone,
   Clock,
   Receipt,
   Loader2,
-  Check,
   Settings,
   ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
-import { INDUSTRY_PRESETS } from "@/lib/industryPresets";
-import type { CapabilityOption, TenantCapability } from "@/types";
+import {
+  getUniversalCapabilities,
+  getDefaultCapabilities,
+} from "@/lib/capabilities";
+import type { CapabilityDefinition, TenantCapability } from "@/types";
 
 // Aceternity & MagicUI components
-import { BentoGrid, BentoGridItem } from "@/components/aceternity/bento-grid";
 import { TextGenerateEffect } from "@/components/aceternity/text-generate-effect";
 import { SpotlightNew } from "@/components/aceternity/spotlight";
 import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import { ShineBorder } from "@/components/magicui/shine-border";
 
 const CAPABILITY_ICONS: Record<string, React.ElementType> = {
-  appointments: CalendarCheck,
-  reservations: CalendarCheck,
-  call_handling: Phone,
-  message_taking: MessageSquare,
+  appointment_booking: CalendarCheck,
+  order_taking: Receipt,
   faq: FileQuestion,
-  emergency_dispatch: AlertTriangle,
-  promotions: Megaphone,
-  after_hours: Clock,
-  patient_intake: Receipt,
+  call_transfer: Phone,
+  voicemail: MessageSquare,
+  callbacks: Clock,
 };
 
-// Define capabilities by category
-const CAPABILITY_OPTIONS: CapabilityOption[] = [
-  {
-    id: "appointments",
-    label: "Appointments",
-    description: "Schedule, reschedule, and cancel appointments",
-    icon: "CalendarCheck",
-    category: "core",
-  },
-  {
-    id: "reservations",
-    label: "Reservations",
-    description: "Book tables, rooms, or services",
-    icon: "CalendarCheck",
-    category: "core",
-  },
-  {
-    id: "patient_intake",
-    label: "Patient Intake",
-    description: "Collect patient information before visits",
-    icon: "Receipt",
-    category: "core",
-  },
-  {
-    id: "call_handling",
-    label: "Call Handling",
-    description: "Answer calls and route to the right person",
-    icon: "Phone",
-    category: "core",
-  },
-  {
-    id: "message_taking",
-    label: "Message Taking",
-    description: "Record messages when you're unavailable",
-    icon: "MessageSquare",
-    category: "communication",
-  },
-  {
-    id: "faq",
-    label: "FAQ & Information",
-    description: "Answer common questions about your business",
-    icon: "FileQuestion",
-    category: "communication",
-  },
-  {
-    id: "emergency_dispatch",
-    label: "Emergency Routing",
-    description: "Identify and escalate urgent situations",
-    icon: "AlertTriangle",
-    category: "advanced",
-  },
-  {
-    id: "promotions",
-    label: "Promotions",
-    description: "Mention special offers to callers",
-    icon: "Megaphone",
-    category: "advanced",
-  },
-  {
-    id: "after_hours",
-    label: "After Hours",
-    description: "Handle calls outside business hours",
-    icon: "Clock",
-    category: "advanced",
-  },
-];
+// The single flat, universal capability set.
+const CAPABILITY_OPTIONS: CapabilityDefinition[] = getUniversalCapabilities();
 
-// Map industries to recommended capabilities
-const INDUSTRY_CAPABILITIES: Record<string, string[]> = {
-  dental: ["appointments", "patient_intake", "faq", "emergency_dispatch"],
-  medical: ["appointments", "patient_intake", "faq", "emergency_dispatch"],
-  restaurant: ["reservations", "faq", "promotions", "after_hours"],
-  hotel: ["reservations", "faq", "after_hours"],
-  motel: ["reservations", "faq", "after_hours"],
-  salon: ["appointments", "faq", "promotions"],
-  auto_service: ["appointments", "faq", "promotions"],
-  default: ["call_handling", "message_taking", "faq"],
-};
-
-// Links to detailed settings for each capability
+// Links to detailed settings for each capability.
 const CAPABILITY_SETTINGS_LINKS: Record<string, string> = {
-  appointments: "/calendar",
-  reservations: "/calendar",
-  promotions: "/settings/promotions",
-  after_hours: "/settings/hours",
-  emergency_dispatch: "/settings/escalation",
+  appointment_booking: "/calendar",
   faq: "/settings/assistant",
+  call_transfer: "/settings/escalation",
+  callbacks: "/settings/hours",
 };
 
 export default function CapabilitiesSettingsPage() {
@@ -142,13 +59,7 @@ export default function CapabilitiesSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [capabilities, setCapabilities] = useState<string[]>([]);
 
-  const industry = currentTenant?.industry;
-  const industryPreset = industry
-    ? INDUSTRY_PRESETS[industry as keyof typeof INDUSTRY_PRESETS]
-    : null;
-  const recommendedCapabilities =
-    (industry && INDUSTRY_CAPABILITIES[industry]) ||
-    INDUSTRY_CAPABILITIES.default;
+  const recommendedCapabilities = getDefaultCapabilities();
 
   useEffect(() => {
     const loadCapabilities = async () => {
@@ -171,7 +82,9 @@ export default function CapabilitiesSettingsPage() {
     };
 
     loadCapabilities();
-  }, [currentTenant, recommendedCapabilities]);
+    // recommendedCapabilities is a stable constant; safe to omit
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTenant]);
 
   const toggleCapability = (id: string) => {
     setCapabilities((prev) =>
@@ -211,11 +124,8 @@ export default function CapabilitiesSettingsPage() {
   const communicationCapabilities = CAPABILITY_OPTIONS.filter(
     (c) => c.category === "communication",
   );
-  const advancedCapabilities = CAPABILITY_OPTIONS.filter(
-    (c) => c.category === "advanced",
-  );
 
-  const renderCapabilityCard = (capability: CapabilityOption) => {
+  const renderCapabilityCard = (capability: CapabilityDefinition) => {
     const isSelected = capabilities.includes(capability.id);
     const isRecommended = recommendedCapabilities.includes(capability.id);
     const Icon = CAPABILITY_ICONS[capability.id] || Phone;
@@ -304,9 +214,7 @@ export default function CapabilitiesSettingsPage() {
             duration={0.3}
           />
           <p className="mt-2 text-muted-foreground">
-            {industryPreset
-              ? `Manage what your assistant can do for ${industryPreset.label.toLowerCase()} businesses`
-              : "Choose what your assistant should handle"}
+            Choose what your assistant should handle
           </p>
         </div>
 
@@ -333,19 +241,6 @@ export default function CapabilitiesSettingsPage() {
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {communicationCapabilities.map(renderCapabilityCard)}
-          </div>
-        </div>
-
-        {/* Advanced capabilities */}
-        <div className="relative z-10 space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="h-1 w-4 rounded-full bg-amber-500" />
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-              Advanced
-            </Label>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {advancedCapabilities.map(renderCapabilityCard)}
           </div>
         </div>
 

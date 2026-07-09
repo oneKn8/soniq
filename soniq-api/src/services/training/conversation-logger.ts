@@ -1,5 +1,6 @@
 import { query } from "../database/client.js";
 import { insertOne, updateOne } from "../database/query-helpers.js";
+import { logger } from "../../lib/logger.js";
 
 export interface ConversationMessage {
   role: "system" | "user" | "assistant" | "tool";
@@ -61,7 +62,7 @@ class ConversationLogger {
       messages: [],
     });
 
-    console.log(`[TRAINING] Started logging conversation: ${data.id}`);
+    logger.info(`[TRAINING] Started logging conversation: ${data.id}`);
     return data.id;
   }
 
@@ -71,9 +72,7 @@ class ConversationLogger {
   ): Promise<void> {
     const conversation = this.activeConversations.get(sessionId);
     if (!conversation) {
-      console.warn(
-        `[TRAINING] No active conversation for session: ${sessionId}`,
-      );
+      logger.warn(`[TRAINING] No active conversation for session: ${sessionId}`);
       return;
     }
 
@@ -147,7 +146,7 @@ class ConversationLogger {
         ],
       );
     } catch (error) {
-      console.error("[TRAINING] Failed to flush messages:", error);
+      logger.error({ error }, "[TRAINING] Failed to flush messages:");
       throw error;
     }
   }
@@ -241,11 +240,9 @@ class ConversationLogger {
     try {
       await updateOne("conversation_logs", updateData, { id: conversation.id });
 
-      console.log(
-        `[TRAINING] Ended conversation: ${conversation.id} (${conversation.messages.length} turns, quality: ${qualityScore})`,
-      );
+      logger.info(`[TRAINING] Ended conversation: ${conversation.id} (${conversation.messages.length} turns, quality: ${qualityScore})`);
     } catch (error) {
-      console.error("[TRAINING] Failed to end conversation:", error);
+      logger.error({ error }, "[TRAINING] Failed to end conversation:");
       throw error;
     }
 

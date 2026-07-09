@@ -19,7 +19,7 @@ import {
 import { TaskForm } from "./TaskForm";
 import { searchTasks, getTaskCounts, completeTask } from "@/lib/api/tasks";
 import type { Task, TaskPriority, TaskCounts } from "@/lib/api/tasks";
-import { useIndustry } from "@/context/IndustryContext";
+import { useTerminology } from "@/lib/terminology";
 import { cn } from "@/lib/utils";
 
 // ============================================================================
@@ -254,7 +254,7 @@ function createColumns(
 // ============================================================================
 
 export default function TasksPage() {
-  const { customerLabel, taskTypes } = useIndustry();
+  const { customerLabel, taskTypes } = useTerminology();
 
   // Derive type labels and filter options from industry context
   const typeLabels = React.useMemo(() => {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useConfig } from "@/context/ConfigContext";
 import { useTenant } from "@/context/TenantContext";
 import { useTenantConfig } from "@/hooks/useTenantConfig";
@@ -10,50 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import {
-  Building2,
-  Stethoscope,
-  Check,
-  Car,
-  Briefcase,
-  Scissors,
-  ChevronDown,
-  UtensilsCrossed,
-  Palette,
-  Phone,
-  Loader2,
-} from "lucide-react";
-import type { IndustryType, ThemeColor, IndustryCategory } from "@/types";
-import {
-  INDUSTRY_CATEGORIES,
-  getPopularIndustries,
-} from "@/lib/industryPresets";
+import { Building2, Check, Palette, Phone, Loader2 } from "lucide-react";
+import type { ThemeColor } from "@/types";
+import { UNIVERSAL_TERMINOLOGY } from "@/lib/terminology";
 import { cn } from "@/lib/utils";
 
 // ============================================================================
-// INDUSTRY ICONS
+// THEME COLORS
 // ============================================================================
-
-const INDUSTRY_ICON_MAP: Record<string, React.ElementType> = {
-  // Hospitality
-  hotel: Building2,
-  motel: Building2,
-  restaurant: UtensilsCrossed,
-  // Healthcare
-  medical: Stethoscope,
-  dental: Stethoscope,
-  // Automotive
-  auto_service: Car,
-  // Personal Care
-  salon: Scissors,
-};
-
-const CATEGORY_ICONS: Record<IndustryCategory, React.ElementType> = {
-  hospitality: Building2,
-  healthcare: Stethoscope,
-  automotive: Car,
-  personal_care: Scissors,
-};
 
 const THEME_COLORS: { value: ThemeColor; label: string; class: string }[] = [
   { value: "zinc", label: "Zinc", class: "bg-zinc-500" },
@@ -79,19 +43,23 @@ const DEFAULT_FEATURES = {
   transcription_enabled: false,
 };
 
+// Fixed, universal terminology surfaced read-only in settings.
+const TERMINOLOGY_ROWS: { label: string; value: string }[] = [
+  { label: "Customer", value: UNIVERSAL_TERMINOLOGY.customerPlural },
+  { label: "Booking", value: UNIVERSAL_TERMINOLOGY.bookingPlural },
+  { label: "Deal", value: UNIVERSAL_TERMINOLOGY.dealPlural },
+  { label: "Task", value: UNIVERSAL_TERMINOLOGY.taskPlural },
+];
+
 // ============================================================================
 // GENERAL TAB COMPONENT
 // ============================================================================
 
 export default function GeneralTab() {
-  const { config, updateConfig, industryPresets, hasPermission } = useConfig();
+  const { config, updateConfig } = useConfig();
   const { refreshCurrentTenant } = useTenant();
   const { toast } = useToast();
   const { tenant, error, clearError, updateSettings } = useTenantConfig();
-
-  const [showAllIndustries, setShowAllIndustries] = useState(false);
-  const [selectedCategory, setSelectedCategory] =
-    useState<IndustryCategory | null>(null);
 
   // Phone number local state (separate save logic)
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -138,18 +106,7 @@ export default function GeneralTab() {
 
   const isPhoneChanged = phoneNumber !== (tenant.phone_number || "");
   const isOwner = tenant.role === "owner";
-  const canSwitchIndustry = hasPermission("switch_industry");
-  const popularIndustries = getPopularIndustries();
-  const industry = (tenant.industry || "hotel") as IndustryType;
   const features = tenant.features || DEFAULT_FEATURES;
-
-  const getIndustryIcon = (industryId: string) => {
-    return INDUSTRY_ICON_MAP[industryId] || Building2;
-  };
-
-  const handleIndustrySwitch = (newIndustry: IndustryType) => {
-    updateSettings({ industry: newIndustry });
-  };
 
   const handleFeatureToggle = (
     key: keyof typeof DEFAULT_FEATURES,
@@ -274,179 +231,32 @@ export default function GeneralTab() {
         </div>
       </section>
 
-      {/* Industry Selection */}
+      {/* Workspace Terminology (fixed / universal) */}
       <section className="space-y-4 rounded-2xl border border-border bg-card p-6">
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <div className="flex items-center gap-2">
-            <Briefcase className="h-4 w-4 text-primary" />
-            <h4 className="text-sm font-medium text-foreground">Industry</h4>
-          </div>
-          {canSwitchIndustry && (
-            <p className="text-xs text-muted-foreground">
-              Changing industry will reset pricing to defaults
-            </p>
-          )}
+        <div className="flex items-center gap-2 border-b border-border pb-3">
+          <Building2 className="h-4 w-4 text-primary" />
+          <h4 className="text-sm font-medium text-foreground">
+            Workspace Terminology
+          </h4>
         </div>
-
-        {/* Current Industry Display */}
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
-          <div className="flex items-center gap-3">
-            {React.createElement(getIndustryIcon(industry), {
-              className: "h-6 w-6 text-primary",
-            })}
-            <div className="flex-1">
-              <div className="font-medium text-foreground">
-                {industryPresets[industry]?.label || industry}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {industryPresets[industry]?.terminology.transactionPlural}
-              </div>
+        <p className="text-xs text-muted-foreground">
+          Soniq uses one universal vocabulary across every workspace.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {TERMINOLOGY_ROWS.map((row) => (
+            <div
+              key={row.label}
+              className="flex items-center justify-between rounded-xl border border-border bg-background px-4 py-3"
+            >
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                {row.label}
+              </span>
+              <span className="text-sm font-medium text-foreground">
+                {row.value}
+              </span>
             </div>
-            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-              Current
-            </span>
-          </div>
+          ))}
         </div>
-
-        {canSwitchIndustry && (
-          <>
-            {/* Popular Industries */}
-            {!showAllIndustries && (
-              <>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {popularIndustries.slice(0, 6).map((preset) => {
-                    const Icon = getIndustryIcon(preset.id);
-                    const isSelected = industry === preset.id;
-
-                    return (
-                      <button
-                        key={preset.id}
-                        onClick={() =>
-                          handleIndustrySwitch(preset.id as IndustryType)
-                        }
-                        className={cn(
-                          "relative rounded-xl border p-4 text-left transition-all",
-                          isSelected
-                            ? "border-primary bg-primary/5 shadow-sm"
-                            : "border-border bg-background hover:border-primary/50 hover:bg-muted/50",
-                        )}
-                      >
-                        {isSelected && (
-                          <div className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary">
-                            <Check className="h-3 w-3 text-primary-foreground" />
-                          </div>
-                        )}
-                        <Icon
-                          className={cn(
-                            "mb-2 h-5 w-5",
-                            isSelected
-                              ? "text-primary"
-                              : "text-muted-foreground",
-                          )}
-                        />
-                        <div className="text-sm font-medium text-foreground">
-                          {preset.label}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <button
-                  onClick={() => setShowAllIndustries(true)}
-                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-                >
-                  Show all industries
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-              </>
-            )}
-
-            {/* All Industries */}
-            {showAllIndustries && (
-              <>
-                <button
-                  onClick={() => setShowAllIndustries(false)}
-                  className="text-sm text-muted-foreground hover:text-foreground"
-                >
-                  Back to popular
-                </button>
-
-                {/* Category Filter */}
-                <div className="flex flex-wrap gap-2">
-                  {(Object.keys(INDUSTRY_CATEGORIES) as IndustryCategory[]).map(
-                    (cat) => {
-                      const CatIcon = CATEGORY_ICONS[cat];
-                      return (
-                        <button
-                          key={cat}
-                          onClick={() =>
-                            setSelectedCategory(
-                              selectedCategory === cat ? null : cat,
-                            )
-                          }
-                          className={cn(
-                            "flex items-center gap-2 rounded-full px-3 py-1.5 text-xs transition-all",
-                            selectedCategory === cat
-                              ? "bg-primary/10 text-primary"
-                              : "bg-muted text-muted-foreground hover:bg-muted/80",
-                          )}
-                        >
-                          <CatIcon className="h-3 w-3" />
-                          {INDUSTRY_CATEGORIES[cat].label}
-                        </button>
-                      );
-                    },
-                  )}
-                </div>
-
-                {/* Grid */}
-                <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                  {Object.values(industryPresets)
-                    .filter(
-                      (preset) =>
-                        !selectedCategory ||
-                        preset.category === selectedCategory,
-                    )
-                    .map((preset) => {
-                      const Icon = getIndustryIcon(preset.id);
-                      const isSelected = industry === preset.id;
-
-                      return (
-                        <button
-                          key={preset.id}
-                          onClick={() =>
-                            handleIndustrySwitch(preset.id as IndustryType)
-                          }
-                          className={cn(
-                            "flex items-center gap-2 rounded-xl border p-3 text-left transition-all",
-                            isSelected
-                              ? "border-primary bg-primary/5"
-                              : "border-border bg-background hover:border-primary/50",
-                          )}
-                        >
-                          <Icon
-                            className={cn(
-                              "h-4 w-4 shrink-0",
-                              isSelected
-                                ? "text-primary"
-                                : "text-muted-foreground",
-                            )}
-                          />
-                          <span className="truncate text-xs text-foreground">
-                            {preset.label}
-                          </span>
-                          {isSelected && (
-                            <Check className="ml-auto h-3 w-3 text-primary" />
-                          )}
-                        </button>
-                      );
-                    })}
-                </div>
-              </>
-            )}
-          </>
-        )}
       </section>
 
       {/* Theme Color */}

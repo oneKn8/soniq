@@ -10,7 +10,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useIndustry } from "@/context/IndustryContext";
+import { useTerminology } from "@/lib/terminology";
 import {
   getCalendarEvents,
   getDateRangeForView,
@@ -243,7 +243,7 @@ function DaySummaryPanel({
   onClose: () => void;
   onAddBooking: () => void;
 }) {
-  const { transactionLabel, transactionPluralLabel } = useIndustry();
+  const { transactionLabel, transactionPluralLabel } = useTerminology();
   return (
     <div className="w-80 border-l border-zinc-800 flex flex-col">
       {/* Header */}
@@ -344,7 +344,7 @@ function DaySummaryPanel({
 // ============================================================================
 
 export default function CalendarPage() {
-  const { transactionLabel } = useIndustry();
+  const { transactionLabel } = useTerminology();
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [view, setView] = React.useState<CalendarView>("month");
   const [events, setEvents] = React.useState<CalendarEvent[]>([]);

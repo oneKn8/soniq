@@ -1,13 +1,32 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import {
   queryOne,
   queryAll,
   transaction,
 } from "../services/database/client.js";
 import { getAuthUserId } from "../middleware/index.js";
+import { parseJson } from "../lib/validate.js";
 import type { PoolClient } from "pg";
+import { logger } from "../lib/logger.js";
 
 export const capabilitiesRoutes = new Hono();
+
+const updateCapabilitiesSchema = z.object({
+  capabilities: z.array(
+    z
+      .object({
+        capability: z.string().min(1),
+        config: z.record(z.unknown()).optional(),
+      })
+      .passthrough(),
+  ),
+});
+
+const updateCapabilitySchema = z.object({
+  config: z.record(z.unknown()).optional(),
+  is_enabled: z.boolean().optional(),
+});
 
 /** Type definitions for database rows */
 interface MembershipRow {
@@ -25,564 +44,66 @@ interface CapabilityRow {
   updated_at: string;
 }
 
-// Capability definitions by industry
-const CAPABILITY_OPTIONS: Record<
-  string,
+// The one flat universal capability set. No per-industry menus.
+const UNIVERSAL_CAPABILITY_OPTIONS: {
+  id: string;
+  label: string;
+  description: string;
+  icon: string;
+  category: "core" | "communication" | "advanced";
+  requiresIntegration?: boolean;
+}[] = [
   {
-    id: string;
-    label: string;
-    description: string;
-    icon: string;
-    category: "core" | "communication" | "advanced";
-    requiresIntegration?: boolean;
-  }[]
-> = {
-  // Restaurant/Food Service
-  restaurant: [
-    {
-      id: "reservations",
-      label: "Take Reservations",
-      description: "Book tables for customers",
-      icon: "calendar",
-      category: "core",
-    },
-    {
-      id: "takeaway",
-      label: "Takeaway Orders",
-      description: "Handle pickup and delivery orders",
-      icon: "package",
-      category: "core",
-    },
-    {
-      id: "menu_questions",
-      label: "Menu Questions",
-      description: "Answer questions about menu items, ingredients, allergies",
-      icon: "utensils",
-      category: "core",
-    },
-    {
-      id: "hours_location",
-      label: "Hours & Location",
-      description: "Provide business hours and directions",
-      icon: "clock",
-      category: "core",
-    },
-    {
-      id: "messages",
-      label: "Take Messages",
-      description: "Record messages for follow-up",
-      icon: "message-square",
-      category: "communication",
-    },
-    {
-      id: "faq",
-      label: "FAQ Handling",
-      description: "Answer common questions automatically",
-      icon: "help-circle",
-      category: "advanced",
-    },
-    {
-      id: "transfer_human",
-      label: "Transfer to Human",
-      description: "Connect callers to staff when needed",
-      icon: "phone-forwarded",
-      category: "communication",
-    },
-  ],
-  pizza: [
-    {
-      id: "takeaway",
-      label: "Take Orders",
-      description: "Handle pickup and delivery orders",
-      icon: "package",
-      category: "core",
-    },
-    {
-      id: "menu_questions",
-      label: "Menu Questions",
-      description: "Answer questions about menu items and specials",
-      icon: "utensils",
-      category: "core",
-    },
-    {
-      id: "hours_location",
-      label: "Hours & Location",
-      description: "Provide business hours and directions",
-      icon: "clock",
-      category: "core",
-    },
-    {
-      id: "messages",
-      label: "Take Messages",
-      description: "Record messages for follow-up",
-      icon: "message-square",
-      category: "communication",
-    },
-    {
-      id: "transfer_human",
-      label: "Transfer to Human",
-      description: "Connect callers to staff when needed",
-      icon: "phone-forwarded",
-      category: "communication",
-    },
-  ],
-
-  // Healthcare
-  medical: [
-    {
-      id: "appointments",
-      label: "Schedule Appointments",
-      description: "Book and manage patient appointments",
-      icon: "calendar",
-      category: "core",
-      requiresIntegration: true,
-    },
-    {
-      id: "patient_intake",
-      label: "Patient Intake",
-      description: "Collect patient information before visits",
-      icon: "clipboard",
-      category: "core",
-    },
-    {
-      id: "insurance_questions",
-      label: "Insurance Questions",
-      description: "Answer common insurance and billing questions",
-      icon: "shield",
-      category: "core",
-    },
-    {
-      id: "prescription_refills",
-      label: "Prescription Refills",
-      description: "Take refill requests for processing",
-      icon: "pill",
-      category: "advanced",
-    },
-    {
-      id: "hours_location",
-      label: "Hours & Location",
-      description: "Provide office hours and directions",
-      icon: "clock",
-      category: "core",
-    },
-    {
-      id: "messages",
-      label: "Take Messages",
-      description: "Record messages for medical staff",
-      icon: "message-square",
-      category: "communication",
-    },
-    {
-      id: "transfer_human",
-      label: "Transfer to Staff",
-      description: "Connect urgent calls to medical staff",
-      icon: "phone-forwarded",
-      category: "communication",
-    },
-  ],
-  dental: [
-    {
-      id: "appointments",
-      label: "Schedule Appointments",
-      description: "Book dental appointments",
-      icon: "calendar",
-      category: "core",
-      requiresIntegration: true,
-    },
-    {
-      id: "patient_intake",
-      label: "New Patient Intake",
-      description: "Collect information from new patients",
-      icon: "clipboard",
-      category: "core",
-    },
-    {
-      id: "insurance_questions",
-      label: "Insurance Questions",
-      description: "Answer dental insurance questions",
-      icon: "shield",
-      category: "core",
-    },
-    {
-      id: "hours_location",
-      label: "Hours & Location",
-      description: "Provide office hours and directions",
-      icon: "clock",
-      category: "core",
-    },
-    {
-      id: "messages",
-      label: "Take Messages",
-      description: "Record messages for dental staff",
-      icon: "message-square",
-      category: "communication",
-    },
-    {
-      id: "faq",
-      label: "FAQ Handling",
-      description: "Answer common dental questions",
-      icon: "help-circle",
-      category: "advanced",
-    },
-    {
-      id: "transfer_human",
-      label: "Transfer to Staff",
-      description: "Connect callers to staff when needed",
-      icon: "phone-forwarded",
-      category: "communication",
-    },
-  ],
-
-  // Home Services
-  home_services: [
-    {
-      id: "service_appointments",
-      label: "Schedule Service Calls",
-      description: "Book service appointments",
-      icon: "calendar",
-      category: "core",
-    },
-    {
-      id: "emergency_dispatch",
-      label: "Emergency Dispatch",
-      description: "Handle urgent service requests",
-      icon: "alert-triangle",
-      category: "core",
-    },
-    {
-      id: "quotes",
-      label: "Quote Requests",
-      description: "Collect information for estimates",
-      icon: "file-text",
-      category: "core",
-    },
-    {
-      id: "service_area",
-      label: "Service Area Info",
-      description: "Answer questions about service areas",
-      icon: "map",
-      category: "core",
-    },
-    {
-      id: "messages",
-      label: "Take Messages",
-      description: "Record messages for technicians",
-      icon: "message-square",
-      category: "communication",
-    },
-    {
-      id: "transfer_human",
-      label: "Transfer to Dispatcher",
-      description: "Connect urgent calls to dispatch",
-      icon: "phone-forwarded",
-      category: "communication",
-    },
-  ],
-  hvac: [
-    {
-      id: "service_appointments",
-      label: "Schedule Service",
-      description: "Book HVAC service appointments",
-      icon: "calendar",
-      category: "core",
-    },
-    {
-      id: "emergency_dispatch",
-      label: "Emergency Service",
-      description: "Handle emergency heating/cooling calls",
-      icon: "alert-triangle",
-      category: "core",
-    },
-    {
-      id: "quotes",
-      label: "Quote Requests",
-      description: "Collect information for estimates",
-      icon: "file-text",
-      category: "core",
-    },
-    {
-      id: "service_area",
-      label: "Service Area Info",
-      description: "Answer questions about service areas",
-      icon: "map",
-      category: "core",
-    },
-    {
-      id: "messages",
-      label: "Take Messages",
-      description: "Record messages for technicians",
-      icon: "message-square",
-      category: "communication",
-    },
-    {
-      id: "transfer_human",
-      label: "Transfer to Dispatcher",
-      description: "Connect urgent calls to dispatch",
-      icon: "phone-forwarded",
-      category: "communication",
-    },
-  ],
-  plumbing: [
-    {
-      id: "service_appointments",
-      label: "Schedule Service",
-      description: "Book plumbing service appointments",
-      icon: "calendar",
-      category: "core",
-    },
-    {
-      id: "emergency_dispatch",
-      label: "Emergency Service",
-      description: "Handle emergency plumbing calls",
-      icon: "alert-triangle",
-      category: "core",
-    },
-    {
-      id: "quotes",
-      label: "Quote Requests",
-      description: "Collect information for estimates",
-      icon: "file-text",
-      category: "core",
-    },
-    {
-      id: "service_area",
-      label: "Service Area Info",
-      description: "Answer questions about service areas",
-      icon: "map",
-      category: "core",
-    },
-    {
-      id: "messages",
-      label: "Take Messages",
-      description: "Record messages for plumbers",
-      icon: "message-square",
-      category: "communication",
-    },
-    {
-      id: "transfer_human",
-      label: "Transfer to Dispatcher",
-      description: "Connect urgent calls to dispatch",
-      icon: "phone-forwarded",
-      category: "communication",
-    },
-  ],
-
-  // Professional Services
-  legal: [
-    {
-      id: "consultations",
-      label: "Schedule Consultations",
-      description: "Book consultation appointments",
-      icon: "calendar",
-      category: "core",
-      requiresIntegration: true,
-    },
-    {
-      id: "case_intake",
-      label: "Case Intake",
-      description: "Collect initial case information",
-      icon: "clipboard",
-      category: "core",
-    },
-    {
-      id: "practice_questions",
-      label: "Practice Information",
-      description: "Answer questions about practice areas",
-      icon: "briefcase",
-      category: "core",
-    },
-    {
-      id: "messages",
-      label: "Take Messages",
-      description: "Record messages for attorneys",
-      icon: "message-square",
-      category: "communication",
-    },
-    {
-      id: "transfer_human",
-      label: "Transfer to Staff",
-      description: "Connect callers to legal staff",
-      icon: "phone-forwarded",
-      category: "communication",
-    },
-  ],
-
-  // Salon/Spa
-  salon: [
-    {
-      id: "appointments",
-      label: "Book Appointments",
-      description: "Schedule salon services",
-      icon: "calendar",
-      category: "core",
-      requiresIntegration: true,
-    },
-    {
-      id: "services_info",
-      label: "Services & Pricing",
-      description: "Provide information about services and prices",
-      icon: "scissors",
-      category: "core",
-    },
-    {
-      id: "hours_location",
-      label: "Hours & Location",
-      description: "Provide salon hours and directions",
-      icon: "clock",
-      category: "core",
-    },
-    {
-      id: "messages",
-      label: "Take Messages",
-      description: "Record messages for stylists",
-      icon: "message-square",
-      category: "communication",
-    },
-    {
-      id: "transfer_human",
-      label: "Transfer to Staff",
-      description: "Connect callers to salon staff",
-      icon: "phone-forwarded",
-      category: "communication",
-    },
-  ],
-  spa: [
-    {
-      id: "appointments",
-      label: "Book Appointments",
-      description: "Schedule spa services",
-      icon: "calendar",
-      category: "core",
-      requiresIntegration: true,
-    },
-    {
-      id: "services_info",
-      label: "Services & Pricing",
-      description: "Provide information about treatments and prices",
-      icon: "sparkles",
-      category: "core",
-    },
-    {
-      id: "hours_location",
-      label: "Hours & Location",
-      description: "Provide spa hours and directions",
-      icon: "clock",
-      category: "core",
-    },
-    {
-      id: "messages",
-      label: "Take Messages",
-      description: "Record messages for staff",
-      icon: "message-square",
-      category: "communication",
-    },
-    {
-      id: "transfer_human",
-      label: "Transfer to Staff",
-      description: "Connect callers to spa staff",
-      icon: "phone-forwarded",
-      category: "communication",
-    },
-  ],
-
-  // Hotel/Hospitality
-  hotel: [
-    {
-      id: "reservations",
-      label: "Room Reservations",
-      description: "Book and manage room reservations",
-      icon: "bed",
-      category: "core",
-      requiresIntegration: true,
-    },
-    {
-      id: "guest_services",
-      label: "Guest Services",
-      description: "Handle guest requests and inquiries",
-      icon: "concierge-bell",
-      category: "core",
-    },
-    {
-      id: "amenities_info",
-      label: "Amenities Info",
-      description: "Provide information about hotel amenities",
-      icon: "star",
-      category: "core",
-    },
-    {
-      id: "hours_location",
-      label: "Hours & Directions",
-      description: "Provide check-in times and directions",
-      icon: "clock",
-      category: "core",
-    },
-    {
-      id: "messages",
-      label: "Take Messages",
-      description: "Record messages for guests and staff",
-      icon: "message-square",
-      category: "communication",
-    },
-    {
-      id: "transfer_human",
-      label: "Transfer to Front Desk",
-      description: "Connect callers to front desk staff",
-      icon: "phone-forwarded",
-      category: "communication",
-    },
-  ],
-};
-
-// Default capabilities for unlisted industries
-const DEFAULT_CAPABILITIES = [
-  {
-    id: "appointments",
-    label: "Schedule Appointments",
-    description: "Book appointments and consultations",
+    id: "appointment_booking",
+    label: "Appointment Booking",
+    description: "Book and manage appointments for callers",
     icon: "calendar",
-    category: "core" as const,
-    requiresIntegration: true,
+    category: "core",
   },
   {
-    id: "hours_location",
-    label: "Hours & Location",
-    description: "Provide business hours and directions",
-    icon: "clock",
-    category: "core" as const,
+    id: "order_taking",
+    label: "Order / Request Taking",
+    description: "Take orders or log caller requests",
+    icon: "package",
+    category: "core",
   },
   {
     id: "faq",
-    label: "FAQ Handling",
-    description: "Answer common questions automatically",
+    label: "FAQ & Knowledge",
+    description: "Answer common questions about the business",
     icon: "help-circle",
-    category: "advanced" as const,
+    category: "advanced",
   },
   {
-    id: "messages",
-    label: "Take Messages",
-    description: "Record messages for follow-up",
-    icon: "message-square",
-    category: "communication" as const,
-  },
-  {
-    id: "transfer_human",
-    label: "Transfer to Human",
-    description: "Connect callers to staff when needed",
+    id: "call_transfer",
+    label: "Call Transfer / Escalation",
+    description: "Connect callers to a person when needed",
     icon: "phone-forwarded",
-    category: "communication" as const,
+    category: "communication",
+  },
+  {
+    id: "voicemail",
+    label: "Voicemail",
+    description: "Take messages when no one is available",
+    icon: "message-square",
+    category: "communication",
+  },
+  {
+    id: "callbacks",
+    label: "Callbacks",
+    description: "Record callback requests for follow-up",
+    icon: "phone-call",
+    category: "communication",
   },
 ];
 
 /**
  * GET /api/capabilities/options/:industry
- * Returns available capabilities for an industry
+ * Returns the universal capability set. The :industry path param is retained
+ * for wire compatibility but is ignored.
  */
 capabilitiesRoutes.get("/options/:industry", async (c) => {
-  const industry = c.req.param("industry");
-
-  const capabilities = CAPABILITY_OPTIONS[industry] || DEFAULT_CAPABILITIES;
-
-  return c.json({ capabilities });
+  return c.json({ capabilities: UNIVERSAL_CAPABILITY_OPTIONS });
 });
 
 /**
@@ -621,7 +142,7 @@ capabilitiesRoutes.get("/", async (c) => {
 
     return c.json({ capabilities: capabilities || [] });
   } catch (error) {
-    console.error("[CAPABILITIES] Error fetching capabilities:", error);
+    logger.error({ error }, "[CAPABILITIES] Error fetching capabilities:");
     return c.json({ error: "Failed to fetch capabilities" }, 500);
   }
 });
@@ -631,12 +152,10 @@ capabilitiesRoutes.get("/", async (c) => {
  * Updates tenant's capabilities
  */
 capabilitiesRoutes.put("/", async (c) => {
-  const body = await c.req.json();
+  const parsed = await parseJson(c, updateCapabilitiesSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
   const userId = getAuthUserId(c);
-
-  if (!body.capabilities || !Array.isArray(body.capabilities)) {
-    return c.json({ error: "capabilities array is required" }, 400);
-  }
 
   try {
     // Get tenant (must be owner or admin)
@@ -688,7 +207,7 @@ capabilitiesRoutes.put("/", async (c) => {
 
     return c.json({ capabilities: updated || [] });
   } catch (error) {
-    console.error("[CAPABILITIES] Error updating capabilities:", error);
+    logger.error({ error }, "[CAPABILITIES] Error updating capabilities:");
     return c.json({ error: "Failed to update capabilities" }, 500);
   }
 });
@@ -699,7 +218,9 @@ capabilitiesRoutes.put("/", async (c) => {
  */
 capabilitiesRoutes.put("/:capability", async (c) => {
   const capability = c.req.param("capability");
-  const body = await c.req.json();
+  const parsed = await parseJson(c, updateCapabilitySchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
   const userId = getAuthUserId(c);
 
   try {
@@ -740,7 +261,7 @@ capabilitiesRoutes.put("/:capability", async (c) => {
 
     return c.json(data);
   } catch (error) {
-    console.error("[CAPABILITIES] Error updating capability:", error);
+    logger.error({ error }, "[CAPABILITIES] Error updating capability:");
     return c.json({ error: "Failed to update capability" }, 500);
   }
 });

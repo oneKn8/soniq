@@ -28,7 +28,7 @@ import type {
   TaskPriority,
   CreateTaskInput,
 } from "@/lib/api/tasks";
-import { useIndustry } from "@/context/IndustryContext";
+import { useTerminology } from "@/lib/terminology";
 
 // ============================================================================
 // TYPES
@@ -60,7 +60,7 @@ export function TaskForm({
   task,
   onSuccess,
 }: TaskFormProps) {
-  const { customerLabel, dealLabel, taskTypes } = useIndustry();
+  const { customerLabel, dealLabel, taskTypes } = useTerminology();
   const typeOptions = taskTypes.map((t) => ({
     value: t.value as TaskType,
     label: t.label,

@@ -1,0 +1,33 @@
+# LiveKit Server Configuration (template)
+# Copy to livekit.yaml and fill in real values. livekit.yaml is gitignored.
+# Self-hosted on Hetzner for Soniq voice pipeline.
+# Generate keys with: livekit-server generate-keys
+
+port: 7880
+
+keys:
+  # API_KEY: API_SECRET  (rotate any key that was ever committed)
+  APIxxxxxxxxxxxxxxxxxxxxxxx: replace-with-livekit-api-secret
+
+rtc:
+  # WebRTC TCP fallback port
+  tcp_port: 7881
+  # UDP port range for ICE candidates
+  port_range_start: 50000
+  port_range_end: 60000
+  # Use ICE lite for server-side (recommended for self-hosted)
+  use_ice_lite: true
+
+redis:
+  address: localhost:6379
+
+logging:
+  level: info
+  # Set to debug for troubleshooting SIP/WebRTC issues
+  # level: debug
+
+room:
+  # Auto-create rooms when agents or SIP calls join
+  auto_create: true
+  # Room idle timeout (seconds) - clean up empty rooms
+  empty_timeout: 300

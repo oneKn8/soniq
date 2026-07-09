@@ -6,11 +6,20 @@ import {
 } from "../services/database/client.js";
 import { updateOne } from "../services/database/query-helpers.js";
 import { getAuthUserId } from "../middleware/index.js";
+import { parseJson } from "../lib/validate.js";
 import { invalidateTenant } from "../services/database/tenant-cache.js";
 import type { SetupStep } from "../types/database.js";
 import type { PoolClient } from "pg";
+import { z } from "zod";
+import { logger } from "../lib/logger.js";
 
 export const setupRoutes = new Hono();
+
+// The step payload is polymorphic (fields depend on the step). Validate that a
+// JSON object was sent (reject arrays/invalid JSON) without constraining the
+// per-step shape, so existing request bodies keep working.
+const stepBodySchema = z.record(z.unknown());
+const goBackSchema = z.object({ step: z.string() }).passthrough();
 
 const SETUP_STEPS: SetupStep[] = [
   "business",
@@ -231,7 +240,7 @@ setupRoutes.get("/progress", async (c) => {
       },
     });
   } catch (error) {
-    console.error("[SETUP] Error fetching progress:", error);
+    logger.error({ error }, "[SETUP] Error fetching progress:");
     return c.json({ error: "Failed to fetch setup progress" }, 500);
   }
 });
@@ -242,7 +251,9 @@ setupRoutes.get("/progress", async (c) => {
  */
 setupRoutes.put("/step/:step", async (c) => {
   const step = c.req.param("step") as SetupStep;
-  const body = await c.req.json();
+  const parsed = await parseJson(c, stepBodySchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data as Record<string, any>;
   const userId = getAuthUserId(c);
 
   // Validate step parameter
@@ -267,12 +278,10 @@ setupRoutes.put("/step/:step", async (c) => {
     ]);
 
     if (step === "business") {
-      // Validate required business fields
-      if (!body.business_name || !body.industry) {
-        return c.json(
-          { error: "business_name and industry are required" },
-          400,
-        );
+      // Validate required business fields (industry is no longer required;
+      // the column is kept null-safe and defaults to the neutral "general")
+      if (!body.business_name) {
+        return c.json({ error: "business_name is required" }, 400);
       }
 
       if (membership) {
@@ -282,7 +291,7 @@ setupRoutes.put("/step/:step", async (c) => {
           "tenants",
           {
             business_name: body.business_name,
-            industry: body.industry,
+            industry: body.industry ?? "general",
             location_city: body.location_city || null,
             location_address: body.location_address || null,
             setup_step: getNextStep(step) || step,
@@ -300,7 +309,7 @@ setupRoutes.put("/step/:step", async (c) => {
              RETURNING id`,
             [
               body.business_name,
-              body.industry,
+              body.industry ?? "general",
               body.location_city || null,
               body.location_address || null,
               `pending_${Date.now()}`,
@@ -542,7 +551,7 @@ setupRoutes.put("/step/:step", async (c) => {
       nextStep: getNextStep(step),
     });
   } catch (error) {
-    console.error("[SETUP] Error saving step:", error);
+    logger.error({ error }, "[SETUP] Error saving step:");
     return c.json({ error: "Failed to save setup step" }, 500);
   }
 });
@@ -582,8 +591,8 @@ setupRoutes.post("/complete", async (c) => {
       return c.json({ error: "Tenant not found" }, 404);
     }
 
-    // Verify required data is present
-    if (!tenant.business_name || !tenant.industry) {
+    // Verify required data is present (industry is no longer required)
+    if (!tenant.business_name) {
       return c.json({ error: "Business information incomplete" }, 400);
     }
 
@@ -623,7 +632,7 @@ setupRoutes.post("/complete", async (c) => {
       tenantId,
     });
   } catch (error) {
-    console.error("[SETUP] Error completing setup:", error);
+    logger.error({ error }, "[SETUP] Error completing setup:");
     return c.json({ error: "Failed to complete setup" }, 500);
   }
 });
@@ -633,7 +642,9 @@ setupRoutes.post("/complete", async (c) => {
  * Navigate to a previous step
  */
 setupRoutes.post("/go-back", async (c) => {
-  const body = await c.req.json();
+  const parsed = await parseJson(c, goBackSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
   const userId = getAuthUserId(c);
 
   const targetStep = body.step as SetupStep;
@@ -672,7 +683,7 @@ setupRoutes.post("/go-back", async (c) => {
 
     return c.json({ success: true, step: targetStep });
   } catch (error) {
-    console.error("[SETUP] Error going back:", error);
+    logger.error({ error }, "[SETUP] Error going back:");
     return c.json({ error: "Failed to navigate back" }, 500);
   }
 });

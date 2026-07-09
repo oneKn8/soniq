@@ -1,0 +1,119 @@
+name: CI
+
+# Runs unit tests, type checks, lint, and build for every service on every
+# push and pull request. No database is provisioned or required: the API and
+# agent unit tests mock the pg pool / HTTP client, so CI never spins Postgres
+# and never runs migrations.
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  soniq-api:
+    name: soniq-api (node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: soniq-api
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ["20", "22"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: soniq-api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+  soniq-dashboard:
+    name: soniq-dashboard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: soniq-dashboard
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: soniq-dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          # Non-secret placeholders so static generation never instantiates a
+          # Supabase client with undefined values. Real values are injected at
+          # deploy time, not in CI.
+          NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder-anon-key"
+
+  soniq-agent:
+    name: soniq-agent
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: soniq-agent
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: soniq-agent/requirements.txt
+
+      - name: Install test dependencies
+        # Keep the agent test env lightweight and DB-free: install pytest and
+        # the one runtime dependency the mockable units (api_client, tenant_config,
+        # call_logger) import (httpx). The heavy livekit / ML runtime deps are
+        # deliberately not installed; unit tests mock the network client.
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio httpx
+          if [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+          fi
+
+      - name: Unit tests
+        run: python -m pytest

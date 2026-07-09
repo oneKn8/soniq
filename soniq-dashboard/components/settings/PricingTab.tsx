@@ -2,10 +2,10 @@
 
 import React from "react";
 import { useConfig } from "@/context/ConfigContext";
+import { UNIVERSAL_TERMINOLOGY } from "@/lib/terminology";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DollarSign, Percent, Plus, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 // ============================================================================
 // CURRENCIES
@@ -23,12 +23,11 @@ const CURRENCIES = [
 // ============================================================================
 
 export default function PricingTab() {
-  const { config, updateConfig, getTerminology } = useConfig();
+  const { config, updateConfig } = useConfig();
 
   if (!config) return null;
 
   const { pricing } = config;
-  const terminology = getTerminology(config.industry);
 
   const updatePricing = (updates: Partial<typeof pricing>) => {
     updateConfig("pricing", { ...pricing, ...updates });
@@ -69,7 +68,7 @@ export default function PricingTab() {
         </h3>
         <p className="text-sm text-zinc-500">
           Set your rates and fees for{" "}
-          {terminology.transactionPlural.toLowerCase()}
+          {UNIVERSAL_TERMINOLOGY.bookingPlural.toLowerCase()}
         </p>
       </div>
 
@@ -78,7 +77,7 @@ export default function PricingTab() {
         <div className="border-b border-zinc-800 pb-2">
           <h4 className="text-sm font-medium text-white">Base Rate</h4>
           <p className="text-xs text-zinc-600">
-            Standard price per {terminology.transaction.toLowerCase()}
+            Standard price per {UNIVERSAL_TERMINOLOGY.booking.toLowerCase()}
           </p>
         </div>
 

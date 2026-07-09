@@ -1,14 +1,17 @@
 // System Prompt Builder
 // Builds the voice agent system prompt from tenant configuration
 
-import { getIndustryConfig } from "../../config/industry-prompts.js";
+import {
+  UNIVERSAL_ROLE_TEMPLATE,
+  CAPABILITY_BLOCKS,
+  type CapabilityId,
+} from "../../config/universal-prompt.js";
 import { MASTER_VOICE_PROMPT } from "../../config/master-voice-prompt.js";
 
-// Build system prompt for the voice agent using industry-specific configs
+// Build system prompt for the voice agent from universal role + enabled capabilities
 export function buildSystemPrompt(
   agentName: string,
   businessName: string,
-  industry: string,
   personality: {
     tone: string;
     verbosity: string;
@@ -22,10 +25,14 @@ export function buildSystemPrompt(
     customInstructions?: string;
     escalationPhone?: string;
     timezone?: string;
+    capabilities?: string[];
   },
 ): string {
-  // Get industry-specific configuration
-  const industryConfig = getIndustryConfig(industry);
+  // Fill the universal role template with the tenant's names
+  const roleSection = UNIVERSAL_ROLE_TEMPLATE.replace(
+    /{agentName}/g,
+    agentName,
+  ).replace(/{businessName}/g, businessName);
 
   // Start with master voice prompt (HOW to speak) - cannot be overridden by tenants
   let prompt = MASTER_VOICE_PROMPT;
@@ -34,10 +41,7 @@ export function buildSystemPrompt(
 
 ---
 
-You are ${agentName}, the receptionist at ${businessName}.
-
-## Your Role
-${industryConfig.roleDescription} You ARE the front desk - speak as a real person, not an assistant or AI.
+${roleSection}
 
 ## Personality
 `;
@@ -96,7 +100,6 @@ ${industryConfig.roleDescription} You ARE the front desk - speak as a real perso
 - When listing options, keep it brief: "King or queen bed?" not "Would you prefer a king bed or a queen bed?"
 
 ## Business Context
-Industry: ${industry}
 Business: ${businessName}
 Today's Date: ${new Date().toISOString().split("T")[0]}
 `;
@@ -144,13 +147,13 @@ Today's Date: ${new Date().toISOString().split("T")[0]}
     prompt += `\nNo transfer phone configured. If caller asks for a human, take a message and say someone will call back.\n`;
   }
 
-  prompt += `
-${industryConfig.criticalRules}
-
-${industryConfig.bookingFlow}
-
-${industryConfig.faqSection || ""}
-`;
+  // Append one instruction block per enabled capability
+  const knownCapabilities = Object.keys(CAPABILITY_BLOCKS) as CapabilityId[];
+  for (const capability of options?.capabilities || []) {
+    if (knownCapabilities.includes(capability as CapabilityId)) {
+      prompt += `\n${CAPABILITY_BLOCKS[capability as CapabilityId]}\n`;
+    }
+  }
 
   // Add custom instructions from tenant (business-specific knowledge)
   if (options?.customInstructions && options.customInstructions.trim()) {

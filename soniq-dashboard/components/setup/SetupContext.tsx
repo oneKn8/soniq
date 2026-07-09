@@ -671,7 +671,6 @@ export function SetupProvider({ children }: { children: ReactNode }) {
       case "business":
         return (
           state.businessData.name.trim() !== "" &&
-          state.businessData.industry !== null &&
           state.businessData.city.trim() !== ""
         );
       case "capabilities":

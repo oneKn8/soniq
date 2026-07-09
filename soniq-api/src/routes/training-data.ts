@@ -1,8 +1,23 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import { queryOne, queryAll, queryCount } from "../services/database/client.js";
 import { updateOne } from "../services/database/query-helpers.js";
+import { parseJson } from "../lib/validate.js";
 
 const app = new Hono();
+
+// Update payload accepts a subset of allow-listed columns; validate that a JSON
+// object was sent and let the handler pick the allowed fields.
+const updateLogSchema = z.record(z.unknown());
+
+const bulkReviewSchema = z
+  .object({
+    ids: z.array(z.unknown()),
+    reviewed: z.boolean().optional(),
+    flagged: z.boolean().optional(),
+    tags: z.array(z.unknown()).optional(),
+  })
+  .passthrough();
 
 // Types for export formats
 interface ShareGPTMessage {
@@ -165,7 +180,9 @@ app.patch("/:tenantId/:id", async (c) => {
   try {
     const tenantId = c.req.param("tenantId");
     const id = c.req.param("id");
-    const body = await c.req.json();
+    const parsed = await parseJson(c, updateLogSchema);
+    if (!parsed.success) return parsed.response;
+    const body = parsed.data as Record<string, unknown>;
 
     const allowedFields = [
       "reviewed",
@@ -209,7 +226,9 @@ app.patch("/:tenantId/:id", async (c) => {
 app.post("/:tenantId/bulk-review", async (c) => {
   try {
     const tenantId = c.req.param("tenantId");
-    const { ids, reviewed, flagged, tags } = await c.req.json();
+    const parsed = await parseJson(c, bulkReviewSchema);
+    if (!parsed.success) return parsed.response;
+    const { ids, reviewed, flagged, tags } = parsed.data;
 
     if (!Array.isArray(ids) || ids.length === 0) {
       return c.json({ error: "ids must be a non-empty array" }, 400);

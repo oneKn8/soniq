@@ -1,6 +1,11 @@
 // Resource Service - Staff, Rooms, Equipment management
 import { queryOne, queryAll } from "../database/client.js";
-import { insertOne, updateOne, deleteRows } from "../database/query-helpers.js";
+import {
+  insertOne,
+  updateOne,
+  deleteRows,
+  safeSortColumn,
+} from "../database/query-helpers.js";
 import {
   Resource,
   CreateResourceInput,
@@ -111,6 +116,15 @@ export interface ResourceFilters {
   search?: string;
 }
 
+// Allowed columns for ORDER BY (prevents SQL injection via sort_by param)
+const RESOURCE_SORT_COLUMNS = new Set([
+  "sort_order",
+  "name",
+  "created_at",
+  "updated_at",
+  "type",
+]);
+
 /**
  * List resources with filtering and pagination
  */
@@ -121,7 +135,11 @@ export async function listResources(
 ): Promise<PaginatedResult<Resource>> {
   const limit = pagination.limit || 50;
   const offset = pagination.offset || 0;
-  const sortBy = pagination.sort_by || "sort_order";
+  const sortBy = safeSortColumn(
+    pagination.sort_by,
+    RESOURCE_SORT_COLUMNS,
+    "sort_order",
+  );
   const sortOrder = pagination.sort_order || "asc";
 
   // Build WHERE clause dynamically

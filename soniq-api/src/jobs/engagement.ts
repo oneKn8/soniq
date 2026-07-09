@@ -1,6 +1,7 @@
 // Engagement Score Calculation Job
 import { queryAll, queryOne } from "../services/database/client.js";
 import { updateOne } from "../services/database/query-helpers.js";
+import { logger } from "../lib/logger.js";
 
 interface TenantId {
   id: string;
@@ -43,7 +44,7 @@ export async function updateAllEngagementScores(): Promise<void> {
     try {
       await updateTenantEngagementScores(tenant.id);
     } catch (err) {
-      console.error(`[ENGAGEMENT] Failed for tenant ${tenant.id}:`, err);
+      logger.error({ err }, `[ENGAGEMENT] Failed for tenant ${tenant.id}:`);
     }
   }
 }

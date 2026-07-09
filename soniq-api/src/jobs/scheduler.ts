@@ -11,6 +11,7 @@ import {
   cleanupOldSlots,
 } from "./availability-generator.js";
 import { sendReviewRequests } from "./review-requests.js";
+import { logger } from "../lib/logger.js";
 
 /**
  * Start the background job scheduler
@@ -24,14 +25,14 @@ import { sendReviewRequests } from "./review-requests.js";
  * - Daily at 9 AM: Send review requests for completed bookings
  */
 export function startScheduler(): void {
-  console.log("[SCHEDULER] Starting background jobs");
+  logger.info("[SCHEDULER] Starting background jobs");
 
   // Process booking reminders every 10 minutes (30-min window makes 1-min unnecessary)
   cron.schedule("*/10 * * * *", async () => {
     try {
       await processReminders();
     } catch (error) {
-      console.error("[SCHEDULER] Reminder job failed:", error);
+      logger.error({ error }, "[SCHEDULER] Reminder job failed:");
     }
   });
 
@@ -40,7 +41,7 @@ export function startScheduler(): void {
     try {
       await processCallbacks();
     } catch (error) {
-      console.error("[SCHEDULER] Callback job failed:", error);
+      logger.error({ error }, "[SCHEDULER] Callback job failed:");
     }
   });
 
@@ -50,12 +51,10 @@ export function startScheduler(): void {
       const processed = await processQueue();
       const retried = await retryFailed();
       if (processed > 0 || retried > 0) {
-        console.log(
-          `[SCHEDULER] Notifications: ${processed} processed, ${retried} retried`,
-        );
+        logger.info(`[SCHEDULER] Notifications: ${processed} processed, ${retried} retried`);
       }
     } catch (error) {
-      console.error("[SCHEDULER] Notification queue job failed:", error);
+      logger.error({ error }, "[SCHEDULER] Notification queue job failed:");
     }
   });
 
@@ -65,18 +64,18 @@ export function startScheduler(): void {
       await sendDueReminders();
       await updateAllEngagementScores();
     } catch (error) {
-      console.error("[SCHEDULER] Hourly jobs failed:", error);
+      logger.error({ error }, "[SCHEDULER] Hourly jobs failed:");
     }
   });
 
   // Daily jobs at midnight (generate slots, cleanup)
   cron.schedule("0 0 * * *", async () => {
     try {
-      console.log("[SCHEDULER] Running daily midnight jobs");
+      logger.info("[SCHEDULER] Running daily midnight jobs");
       await generateDailySlots();
       await cleanupOldSlots();
     } catch (error) {
-      console.error("[SCHEDULER] Daily midnight jobs failed:", error);
+      logger.error({ error }, "[SCHEDULER] Daily midnight jobs failed:");
     }
   });
 
@@ -85,15 +84,15 @@ export function startScheduler(): void {
     try {
       await sendReviewRequests();
     } catch (error) {
-      console.error("[SCHEDULER] Review request job failed:", error);
+      logger.error({ error }, "[SCHEDULER] Review request job failed:");
     }
   });
 
-  console.log("[SCHEDULER] Jobs scheduled:");
-  console.log("  - Reminders: every 10 minutes");
-  console.log("  - Callbacks: every 5 minutes");
-  console.log("  - Notification queue: every 15 minutes");
-  console.log("  - Engagement scores: every hour");
-  console.log("  - Daily slot generation: midnight");
-  console.log("  - Review requests: 9 AM daily");
+  logger.info("[SCHEDULER] Jobs scheduled:");
+  logger.info("  - Reminders: every 10 minutes");
+  logger.info("  - Callbacks: every 5 minutes");
+  logger.info("  - Notification queue: every 15 minutes");
+  logger.info("  - Engagement scores: every hour");
+  logger.info("  - Daily slot generation: midnight");
+  logger.info("  - Review requests: 9 AM daily");
 }

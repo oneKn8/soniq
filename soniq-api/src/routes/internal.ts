@@ -4,16 +4,17 @@
 
 import { Hono } from "hono";
 import type { Context, Next } from "hono";
-import {
-  getTenantByPhoneWithFallback,
-  getTenantById,
-} from "../services/database/tenant-cache.js";
+import { z } from "zod";
+import { parseJson } from "../lib/validate.js";
+import { getTenantByPhoneWithFallback } from "../services/database/tenant-cache.js";
 import { buildSystemPrompt } from "../services/gemini/chat.js";
 import { executeTool } from "../services/gemini/tools.js";
 import { insertOne } from "../services/database/query-helpers.js";
+import { queryAll } from "../services/database/client.js";
 import { findOrCreateByPhone } from "../services/contacts/contact-service.js";
 import { runPostCallAutomation } from "../services/automation/post-call.js";
 import type { ToolExecutionContext } from "../types/voice.js";
+import { logger } from "../lib/logger.js";
 
 export const internalRoutes = new Hono();
 
@@ -22,7 +23,7 @@ function internalAuth() {
   return async (c: Context, next: Next) => {
     const apiKey = process.env.INTERNAL_API_KEY;
     if (!apiKey) {
-      console.error("[INTERNAL] INTERNAL_API_KEY not configured");
+      logger.error("[INTERNAL] INTERNAL_API_KEY not configured");
       return c.json({ error: "Internal API not configured" }, 500);
     }
 
@@ -55,8 +56,21 @@ internalRoutes.get("/tenants/by-phone/:phone", async (c) => {
   const tenant = await getTenantByPhoneWithFallback(phone);
 
   if (!tenant) {
-    console.warn(`[INTERNAL] No tenant found for phone: ${phone}`);
+    logger.warn(`[INTERNAL] No tenant found for phone: ${phone}`);
     return c.json({ error: "Tenant not found" }, 404);
+  }
+
+  // Fetch the tenant's enabled capabilities (drives prompt blocks and agent gating)
+  let capabilities: string[] = [];
+  try {
+    const capRows = await queryAll<{ capability: string }>(
+      `SELECT capability FROM tenant_capabilities
+       WHERE tenant_id = $1 AND is_enabled = true`,
+      [tenant.id],
+    );
+    capabilities = (capRows || []).map((row) => row.capability);
+  } catch (err) {
+    logger.warn({ err }, "[INTERNAL] Failed to load tenant capabilities:");
   }
 
   // Build the system prompt using the existing prompt builder
@@ -66,7 +80,6 @@ internalRoutes.get("/tenants/by-phone/:phone", async (c) => {
   const systemPrompt = buildSystemPrompt(
     tenant.agent_name,
     tenant.business_name,
-    tenant.industry,
     tenant.agent_personality,
     {
       operatingHours: t.operating_hours,
@@ -75,6 +88,7 @@ internalRoutes.get("/tenants/by-phone/:phone", async (c) => {
       customInstructions: t.custom_instructions || undefined,
       escalationPhone: tenant.escalation_phone || undefined,
       timezone: tenant.timezone,
+      capabilities,
     },
   );
 
@@ -98,7 +112,16 @@ internalRoutes.get("/tenants/by-phone/:phone", async (c) => {
     voice_pipeline: tenant.voice_pipeline,
     max_call_duration_seconds: t.max_call_duration_seconds ?? 900,
     system_prompt: systemPrompt,
+    capabilities,
   });
+});
+
+const voiceToolSchema = z.object({
+  tenant_id: z.string().min(1),
+  call_sid: z.string().optional(),
+  caller_phone: z.string().optional(),
+  escalation_phone: z.string().optional(),
+  args: z.record(z.unknown()).optional(),
 });
 
 // POST /internal/voice-tools/:action
@@ -106,17 +129,13 @@ internalRoutes.get("/tenants/by-phone/:phone", async (c) => {
 internalRoutes.post("/voice-tools/:action", async (c) => {
   const action = c.req.param("action");
 
-  const body = await c.req.json<{
-    tenant_id: string;
-    call_sid: string;
-    caller_phone?: string;
-    escalation_phone?: string;
-    args: Record<string, unknown>;
-  }>();
-
-  if (!body.tenant_id || !action) {
-    return c.json({ error: "tenant_id and action are required" }, 400);
+  if (!action) {
+    return c.json({ error: "action is required" }, 400);
   }
+
+  const parsed = await parseJson(c, voiceToolSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
 
   const context: ToolExecutionContext = {
     tenantId: body.tenant_id,
@@ -131,7 +150,7 @@ internalRoutes.post("/voice-tools/:action", async (c) => {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Tool execution failed";
-    console.error(`[INTERNAL] Tool ${action} failed:`, error);
+    logger.error({ error }, `[INTERNAL] Tool ${action} failed:`);
     return c.json({ error: message }, 500);
   }
 });
@@ -154,33 +173,36 @@ function mapCallStatus(status: string | undefined): DbCallStatus {
   }
 }
 
+const callLogSchema = z.object({
+  tenant_id: z.string().min(1),
+  call_sid: z.string().min(1),
+  caller_phone: z.string().optional(),
+  caller_name: z.string().optional(),
+  direction: z.enum(["inbound", "outbound"]).optional(),
+  // status stays a loose string; it is normalized by mapCallStatus.
+  status: z.string().optional(),
+  started_at: z.string(),
+  ended_at: z.string(),
+  duration_seconds: z.coerce.number().nonnegative(),
+  ended_reason: z.string().optional(),
+  outcome_type: z
+    .enum(["booking", "inquiry", "support", "escalation", "hangup"])
+    .optional(),
+  outcome_success: z.boolean().optional(),
+  transcript: z.string().optional(),
+  summary: z.string().optional(),
+  sentiment_score: z.coerce.number().optional(),
+  intents_detected: z.array(z.string()).optional(),
+  recording_url: z.string().optional(),
+  cost_cents: z.coerce.number().optional(),
+});
+
 // POST /internal/calls/log
 // Saves a call record from the Python agent
 internalRoutes.post("/calls/log", async (c) => {
-  const body = await c.req.json<{
-    tenant_id: string;
-    call_sid: string;
-    caller_phone?: string;
-    caller_name?: string;
-    direction?: "inbound" | "outbound";
-    status?: string;
-    started_at: string;
-    ended_at: string;
-    duration_seconds: number;
-    ended_reason?: string;
-    outcome_type?: "booking" | "inquiry" | "support" | "escalation" | "hangup";
-    outcome_success?: boolean;
-    transcript?: string;
-    summary?: string;
-    sentiment_score?: number;
-    intents_detected?: string[];
-    recording_url?: string;
-    cost_cents?: number;
-  }>();
-
-  if (!body.tenant_id || !body.call_sid) {
-    return c.json({ error: "tenant_id and call_sid are required" }, 400);
-  }
+  const parsed = await parseJson(c, callLogSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
 
   try {
     // Auto-create or find contact by caller phone
@@ -194,7 +216,7 @@ internalRoutes.post("/calls/log", async (c) => {
         );
         contactId = contact.id;
       } catch (err) {
-        console.warn("[INTERNAL] Failed to find/create contact:", err);
+        logger.warn({ err }, "[INTERNAL] Failed to find/create contact:");
       }
     }
 
@@ -220,12 +242,9 @@ internalRoutes.post("/calls/log", async (c) => {
       contact_id: contactId,
     });
 
-    console.log(
-      `[INTERNAL] Call logged: ${body.call_sid}, ${body.duration_seconds}s, ${body.outcome_type || "inquiry"}`,
-    );
+    logger.info(`[INTERNAL] Call logged: ${body.call_sid}, ${body.duration_seconds}s, ${body.outcome_type || "inquiry"}`);
 
     // Run post-call automation (deals, tasks, status updates) - non-blocking
-    const tenant = getTenantById(body.tenant_id);
     runPostCallAutomation({
       tenantId: body.tenant_id,
       callId: record.id,
@@ -235,14 +254,13 @@ internalRoutes.post("/calls/log", async (c) => {
       outcomeType: body.outcome_type || "inquiry",
       durationSeconds: body.duration_seconds,
       status: mapCallStatus(body.status),
-      industry: tenant?.industry || "restaurant",
     }).catch((err) => {
-      console.error("[INTERNAL] Post-call automation error:", err);
+      logger.error({ err }, "[INTERNAL] Post-call automation error:");
     });
 
     return c.json({ success: true, id: record.id });
   } catch (error) {
-    console.error("[INTERNAL] Failed to log call:", error);
+    logger.error({ error }, "[INTERNAL] Failed to log call:");
     return c.json({ error: "Failed to save call record" }, 500);
   }
 });

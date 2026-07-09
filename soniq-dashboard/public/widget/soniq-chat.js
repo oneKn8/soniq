@@ -2,29 +2,56 @@
  * Soniq Chat Widget
  * Embeddable chat widget for customer websites
  *
- * Usage:
+ * Usage (constructor config):
  * <script src="https://app.soniq.ai/widget/soniq-chat.js"></script>
  * <script>
  *   new SoniqChat({ tenantId: 'YOUR_TENANT_ID' });
  * </script>
+ *
+ * Usage (data attributes, auto-init):
+ * <script
+ *   src="https://app.soniq.ai/widget/soniq-chat.js"
+ *   data-tenant-id="YOUR_TENANT_ID"
+ *   data-api-url="https://api.soniq.ai"
+ *   data-auto-init></script>
  */
 
 (function () {
   "use strict";
 
   const WIDGET_VERSION = "1.0.0";
-  const DEFAULT_API_URL = "https://api.soniqai.com";
+  const DEFAULT_API_URL = "https://api.soniq.ai";
+
+  // Capture the <script> element that loaded this widget so configuration can
+  // be provided via data-* attributes (data-api-url, data-tenant-id) in
+  // addition to the constructor config object.
+  const loaderScript =
+    document.currentScript ||
+    (function () {
+      const scripts = document.getElementsByTagName("script");
+      for (let i = scripts.length - 1; i >= 0; i--) {
+        const src = scripts[i].src || "";
+        if (src.indexOf("soniq-chat.js") !== -1) return scripts[i];
+      }
+      return null;
+    })();
+  const scriptData = (loaderScript && loaderScript.dataset) || {};
 
   class SoniqChat {
     constructor(config) {
-      if (!config || !config.tenantId) {
-        console.error("[SoniqChat] tenantId is required");
+      config = config || {};
+
+      const tenantId = config.tenantId || scriptData.tenantId;
+      if (!tenantId) {
+        console.error(
+          "[SoniqChat] tenantId is required (pass { tenantId } or data-tenant-id)",
+        );
         return;
       }
 
-      this.tenantId = config.tenantId;
-      this.apiUrl = config.apiUrl || DEFAULT_API_URL;
-      this.position = config.position || "bottom-right";
+      this.tenantId = tenantId;
+      this.apiUrl = config.apiUrl || scriptData.apiUrl || DEFAULT_API_URL;
+      this.position = config.position || scriptData.position || "bottom-right";
       this.sessionId = this.generateSessionId();
       this.isOpen = false;
       this.isLoading = false;
@@ -507,4 +534,10 @@
 
   // Expose globally
   window.SoniqChat = SoniqChat;
+
+  // Optional auto-init: when the loader script carries a data-auto-init flag,
+  // instantiate immediately using its data-* attributes.
+  if (loaderScript && "autoInit" in scriptData) {
+    window.SoniqChatInstance = new SoniqChat({});
+  }
 })();

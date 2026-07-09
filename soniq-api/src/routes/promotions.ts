@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import { queryOne, queryAll } from "../services/database/client.js";
 import {
   insertOne,
@@ -6,8 +7,30 @@ import {
   deleteRows,
 } from "../services/database/query-helpers.js";
 import { getAuthUserId } from "../middleware/index.js";
+import { parseJson } from "../lib/validate.js";
+import { logger } from "../lib/logger.js";
 
 export const promotionsRoutes = new Hono();
+
+const createPromotionSchema = z
+  .object({
+    offer_text: z.string().min(1),
+    mention_behavior: z.string().optional(),
+    is_active: z.boolean().optional(),
+    starts_at: z.string().nullable().optional(),
+    ends_at: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+const updatePromotionSchema = z
+  .object({
+    offer_text: z.string().optional(),
+    mention_behavior: z.string().optional(),
+    is_active: z.boolean().optional(),
+    starts_at: z.string().nullable().optional(),
+    ends_at: z.string().nullable().optional(),
+  })
+  .passthrough();
 
 /** Type definitions for database rows */
 interface MembershipRow {
@@ -76,7 +99,7 @@ promotionsRoutes.get("/", async (c) => {
 
     return c.json({ promotions: promotions || [] });
   } catch (error) {
-    console.error("[PROMOTIONS] Error fetching promotions:", error);
+    logger.error({ error }, "[PROMOTIONS] Error fetching promotions:");
     return c.json({ error: "Failed to fetch promotions" }, 500);
   }
 });
@@ -86,12 +109,10 @@ promotionsRoutes.get("/", async (c) => {
  * Create a promotion
  */
 promotionsRoutes.post("/", async (c) => {
-  const body = await c.req.json();
+  const parsed = await parseJson(c, createPromotionSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
   const userId = getAuthUserId(c);
-
-  if (!body.offer_text) {
-    return c.json({ error: "offer_text is required" }, 400);
-  }
 
   try {
     // Get tenant
@@ -123,7 +144,7 @@ promotionsRoutes.post("/", async (c) => {
 
     return c.json(promotion, 201);
   } catch (error) {
-    console.error("[PROMOTIONS] Error creating promotion:", error);
+    logger.error({ error }, "[PROMOTIONS] Error creating promotion:");
     return c.json({ error: "Failed to create promotion" }, 500);
   }
 });
@@ -168,7 +189,7 @@ promotionsRoutes.get("/:id", async (c) => {
 
     return c.json(promotion);
   } catch (error) {
-    console.error("[PROMOTIONS] Error fetching promotion:", error);
+    logger.error({ error }, "[PROMOTIONS] Error fetching promotion:");
     return c.json({ error: "Failed to fetch promotion" }, 500);
   }
 });
@@ -179,7 +200,9 @@ promotionsRoutes.get("/:id", async (c) => {
  */
 promotionsRoutes.put("/:id", async (c) => {
   const id = c.req.param("id");
-  const body = await c.req.json();
+  const parsed = await parseJson(c, updatePromotionSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
   const userId = getAuthUserId(c);
 
   try {
@@ -229,7 +252,7 @@ promotionsRoutes.put("/:id", async (c) => {
 
     return c.json(promotion);
   } catch (error) {
-    console.error("[PROMOTIONS] Error updating promotion:", error);
+    logger.error({ error }, "[PROMOTIONS] Error updating promotion:");
     return c.json({ error: "Failed to update promotion" }, 500);
   }
 });
@@ -277,7 +300,7 @@ promotionsRoutes.delete("/:id", async (c) => {
 
     return c.json({ success: true });
   } catch (error) {
-    console.error("[PROMOTIONS] Error deleting promotion:", error);
+    logger.error({ error }, "[PROMOTIONS] Error deleting promotion:");
     return c.json({ error: "Failed to delete promotion" }, 500);
   }
 });
@@ -332,7 +355,7 @@ promotionsRoutes.post("/:id/toggle", async (c) => {
 
     return c.json(promotion);
   } catch (error) {
-    console.error("[PROMOTIONS] Error toggling promotion:", error);
+    logger.error({ error }, "[PROMOTIONS] Error toggling promotion:");
     return c.json({ error: "Failed to toggle promotion" }, 500);
   }
 });

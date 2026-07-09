@@ -3,6 +3,7 @@
 
 import { insertOne, updateOne } from "../database/query-helpers.js";
 import type { CallSession, ConversationMessage } from "../../types/voice.js";
+import { logger } from "../../lib/logger.js";
 
 export interface CallRecord {
   tenant_id: string;
@@ -340,11 +341,9 @@ export async function saveCallRecord(
 
     await insertOne("calls", callRecord);
 
-    console.log(
-      `[CALL-LOGGER] Saved call ${session.callSid}: ${durationSeconds}s, ${outcome.type}, sentiment: ${sentiment.toFixed(2)}`,
-    );
+    logger.info(`[CALL-LOGGER] Saved call ${session.callSid}: ${durationSeconds}s, ${outcome.type}, sentiment: ${sentiment.toFixed(2)}`);
   } catch (error) {
-    console.error("[CALL-LOGGER] Error saving call record:", error);
+    logger.error({ error }, "[CALL-LOGGER] Error saving call record:");
     throw error;
   }
 }
@@ -359,7 +358,7 @@ export async function updateCallRecord(
   try {
     await updateOne("calls", updates, { vapi_call_id: callSid });
   } catch (error) {
-    console.error("[CALL-LOGGER] Error updating call record:", error);
+    logger.error({ error }, "[CALL-LOGGER] Error updating call record:");
     throw error;
   }
 }

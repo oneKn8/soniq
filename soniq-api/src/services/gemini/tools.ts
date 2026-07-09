@@ -19,6 +19,7 @@ import type {
 import { query, queryOne, queryAll } from "../database/client.js";
 import { insertOne } from "../database/query-helpers.js";
 import { findOrCreateByPhone } from "../contacts/contact-service.js";
+import { logger } from "../../lib/logger.js";
 
 // Generate confirmation code
 function generateConfirmationCode(): string {
@@ -40,10 +41,7 @@ export async function executeCheckAvailability(
   args: CheckAvailabilityArgs,
   context: ToolExecutionContext,
 ): Promise<CheckAvailabilityResult> {
-  console.log(
-    `[TOOLS] check_availability called for tenant ${context.tenantId}:`,
-    args,
-  );
+  logger.info({ args }, `[TOOLS] check_availability called for tenant ${context.tenantId}:`);
 
   try {
     const existingBookings = await queryAll<BookingTimeRow>(
@@ -84,7 +82,7 @@ export async function executeCheckAvailability(
       message: `We have availability at ${formattedSlots.join(", ")}.${availableSlots.length > 3 ? " And a few other times as well." : ""} Which time works best for you?`,
     };
   } catch (error) {
-    console.error("[TOOLS] check_availability error:", error);
+    logger.error({ error }, "[TOOLS] check_availability error:");
     return {
       available: false,
       message:
@@ -105,10 +103,7 @@ export async function executeCreateBooking(
   args: CreateBookingArgs,
   context: ToolExecutionContext,
 ): Promise<CreateBookingResult> {
-  console.log(
-    `[TOOLS] create_booking called for tenant ${context.tenantId}:`,
-    args,
-  );
+  logger.info({ args }, `[TOOLS] create_booking called for tenant ${context.tenantId}:`);
 
   try {
     const confirmationCode = generateConfirmationCode();
@@ -150,7 +145,7 @@ export async function executeCreateBooking(
       message: `I've booked your appointment for ${formattedDate} at ${formattedTime}. Your confirmation code is ${confirmationCode}. We'll send you a reminder before your appointment.`,
     };
   } catch (error) {
-    console.error("[TOOLS] create_booking error:", error);
+    logger.error({ error }, "[TOOLS] create_booking error:");
     return {
       success: false,
       message: "I encountered an error creating the booking. Let me try again.",
@@ -162,13 +157,10 @@ export async function executeTransferToHuman(
   args: TransferToHumanArgs,
   context: ToolExecutionContext,
 ): Promise<TransferToHumanResult> {
-  console.log(
-    `[TOOLS] transfer_to_human called for tenant ${context.tenantId}:`,
-    args,
-  );
+  logger.info({ args }, `[TOOLS] transfer_to_human called for tenant ${context.tenantId}:`);
 
   if (!context.escalationPhone) {
-    console.warn("[TOOLS] No escalation phone configured");
+    logger.warn("[TOOLS] No escalation phone configured");
     return {
       transferred: false,
       message:
@@ -184,15 +176,13 @@ export async function executeTransferToHuman(
     );
 
     // Return escalation phone - the LiveKit agent handles SIP REFER transfer
-    console.log(
-      `[TOOLS] Transfer requested to ${context.escalationPhone} - agent will handle SIP REFER`,
-    );
+    logger.info(`[TOOLS] Transfer requested to ${context.escalationPhone} - agent will handle SIP REFER`);
     return {
       transferred: true,
       message: "Transferring you now. Please hold.",
     };
   } catch (error) {
-    console.error("[TOOLS] Transfer error:", error);
+    logger.error({ error }, "[TOOLS] Transfer error:");
     return {
       transferred: false,
       message:
@@ -205,7 +195,7 @@ export async function executeEndCall(
   args: EndCallArgs,
   context: ToolExecutionContext,
 ): Promise<EndCallResult> {
-  console.log(`[TOOLS] end_call called for tenant ${context.tenantId}:`, args);
+  logger.info({ args }, `[TOOLS] end_call called for tenant ${context.tenantId}:`);
 
   // Just acknowledge - the LiveKit agent handles session shutdown
   return {
@@ -229,42 +219,78 @@ function isInvalidValue(value: string | undefined): boolean {
   return invalid.includes(value.toLowerCase().trim());
 }
 
+// Legacy capability strings that are treated as aliases of order_taking
+// (no DB migration; existing tenants may still hold these values).
+const ORDER_TAKING_CAPABILITIES = new Set([
+  "order_taking",
+  "takeaway",
+  "orders",
+]);
+
+// Checks whether the tenant has order/request taking enabled.
+async function tenantHasOrderTaking(tenantId: string): Promise<boolean> {
+  try {
+    const rows = await queryAll<{ capability: string }>(
+      `SELECT capability FROM tenant_capabilities
+       WHERE tenant_id = $1 AND is_enabled = true`,
+      [tenantId],
+    );
+    return (rows || []).some((row) =>
+      ORDER_TAKING_CAPABILITIES.has(row.capability),
+    );
+  } catch (error) {
+    logger.error({ error }, "[TOOLS] Failed to check order_taking capability:");
+    return false;
+  }
+}
+
+const VALID_FULFILLMENT_TYPES = ["pickup", "delivery", "onsite", "none"];
+
 export async function executeCreateOrder(
   args: CreateOrderArgs,
   context: ToolExecutionContext,
 ): Promise<CreateOrderResult> {
-  console.log(
-    `[TOOLS] create_order called for tenant ${context.tenantId}:`,
-    args,
-  );
+  logger.info({ args }, `[TOOLS] create_order called for tenant ${context.tenantId}:`);
+
+  // GATING: order/request taking must be enabled for this tenant
+  const orderingEnabled = await tenantHasOrderTaking(context.tenantId);
+  if (!orderingEnabled) {
+    logger.info("[TOOLS] Rejected: order_taking capability not enabled");
+    return {
+      success: false,
+      message:
+        "I'm sorry, we're not set up to take orders on this line. Is there anything else I can help with?",
+    };
+  }
 
   // VALIDATION: Reject invalid/placeholder values
   if (isInvalidValue(args.customer_name)) {
-    console.log("[TOOLS] Rejected: missing customer name");
+    logger.info("[TOOLS] Rejected: missing customer name");
     return {
       success: false,
       message: "I need a name for the order. What name should I put it under?",
     };
   }
 
-  if (!args.order_type || !["pickup", "delivery"].includes(args.order_type)) {
-    console.log("[TOOLS] Rejected: missing order type");
+  if (isInvalidValue(args.request_summary)) {
+    logger.info("[TOOLS] Rejected: missing request summary");
     return {
       success: false,
-      message: "Is this order for pickup or delivery?",
+      message: "What can I get started for you?",
     };
   }
 
-  if (isInvalidValue(args.items)) {
-    console.log("[TOOLS] Rejected: missing items");
-    return {
-      success: false,
-      message: "What would you like to order?",
-    };
-  }
+  const fulfillmentType =
+    args.fulfillment_type &&
+    VALID_FULFILLMENT_TYPES.includes(args.fulfillment_type)
+      ? args.fulfillment_type
+      : "none";
 
-  if (args.order_type === "delivery" && isInvalidValue(args.delivery_address)) {
-    console.log("[TOOLS] Rejected: delivery without address");
+  if (
+    fulfillmentType === "delivery" &&
+    isInvalidValue(args.fulfillment_address)
+  ) {
+    logger.info("[TOOLS] Rejected: delivery without address");
     return {
       success: false,
       message:
@@ -278,9 +304,9 @@ export async function executeCreateOrder(
       : context.callerPhone || "caller";
 
   try {
-    const confirmationCode = `TP-${generateConfirmationCode()}`;
+    const confirmationCode = `OR-${generateConfirmationCode()}`;
 
-    const estimatedMinutes = args.order_type === "pickup" ? 20 : 40;
+    const estimatedMinutes = fulfillmentType === "delivery" ? 40 : 20;
     const readyTime = new Date(Date.now() + estimatedMinutes * 60 * 1000);
     const formattedTime = readyTime.toLocaleTimeString("en-US", {
       hour: "numeric",
@@ -288,12 +314,12 @@ export async function executeCreateOrder(
       hour12: true,
     });
 
-    const notes = [
-      args.items,
-      args.order_type === "delivery" && args.delivery_address
-        ? `DELIVERY TO: ${args.delivery_address}`
-        : "PICKUP ORDER",
-      args.special_instructions ? `NOTES: ${args.special_instructions}` : "",
+    const composedNotes = [
+      args.request_summary,
+      fulfillmentType === "delivery" && args.fulfillment_address
+        ? `DELIVER TO: ${args.fulfillment_address}`
+        : `FULFILLMENT: ${fulfillmentType}`,
+      args.notes && !isInvalidValue(args.notes) ? `NOTES: ${args.notes}` : "",
     ]
       .filter(Boolean)
       .join(". ");
@@ -302,29 +328,32 @@ export async function executeCreateOrder(
       tenant_id: context.tenantId,
       customer_name: args.customer_name,
       customer_phone: customerPhone,
-      booking_type: args.order_type,
+      booking_type: fulfillmentType,
       booking_date: new Date().toISOString().split("T")[0],
       booking_time: new Date().toTimeString().slice(0, 5),
-      notes: notes,
+      notes: composedNotes,
       status: "confirmed",
       confirmation_code: confirmationCode,
       reminder_sent: false,
+      source: "call",
     });
 
-    const orderTypeText =
-      args.order_type === "pickup"
-        ? `ready for pickup in about ${estimatedMinutes} minutes`
-        : `delivered in about ${estimatedMinutes} minutes`;
+    const timingText =
+      fulfillmentType === "delivery"
+        ? `delivered in about ${estimatedMinutes} minutes`
+        : fulfillmentType === "pickup"
+          ? `ready in about ${estimatedMinutes} minutes`
+          : "taken care of shortly";
 
     return {
       success: true,
       order_id: data.id,
       confirmation_code: confirmationCode,
       estimated_time: formattedTime,
-      message: `Your order is confirmed! It will be ${orderTypeText}. Your confirmation number is ${confirmationCode}. Is there anything else I can help you with?`,
+      message: `Your order is confirmed! It will be ${timingText}. Your confirmation number is ${confirmationCode}. Is there anything else I can help you with?`,
     };
   } catch (error) {
-    console.error("[TOOLS] create_order error:", error);
+    logger.error({ error }, "[TOOLS] create_order error:");
     return {
       success: false,
       message: "I encountered an error placing your order. Let me try again.",
@@ -336,7 +365,7 @@ export async function executeLogNote(
   args: LogNoteArgs,
   context: ToolExecutionContext,
 ): Promise<LogNoteResult> {
-  console.log(`[TOOLS] log_note called for tenant ${context.tenantId}:`, args);
+  logger.info({ args }, `[TOOLS] log_note called for tenant ${context.tenantId}:`);
 
   try {
     // Find or create the contact by phone
@@ -395,7 +424,7 @@ export async function executeLogNote(
       message: "Note saved.",
     };
   } catch (error) {
-    console.error("[TOOLS] log_note error:", error);
+    logger.error({ error }, "[TOOLS] log_note error:");
     return {
       success: false,
       message: "Note saved.",

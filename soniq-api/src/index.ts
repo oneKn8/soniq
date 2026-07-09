@@ -2,7 +2,7 @@ import "dotenv/config";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { logger } from "hono/logger";
+import { logger as httpLogger } from "hono/logger";
 import { timing } from "hono/timing";
 
 import { healthRoutes } from "./routes/health.js";
@@ -14,7 +14,10 @@ import { contactsRoutes } from "./routes/contacts.js";
 import { availabilityRoutes } from "./routes/availability.js";
 import { notificationsRoutes } from "./routes/notifications.js";
 import { resourcesRoutes } from "./routes/resources.js";
-import { voicemailRoutes } from "./routes/voicemails.js";
+import {
+  voicemailRoutes,
+  voicemailWebhookRoutes,
+} from "./routes/voicemails.js";
 import trainingDataRoutes from "./routes/training-data.js";
 import { chatRoutes } from "./routes/chat.js";
 import { setupRoutes } from "./routes/setup.js";
@@ -34,12 +37,18 @@ import {
   authMiddleware,
   userAuthMiddleware,
   rateLimit,
+  verifyTelephonyWebhook,
 } from "./middleware/index.js";
+import { logger } from "./lib/logger.js";
+import {
+  initErrorReporting,
+  captureException,
+} from "./lib/error-reporting.js";
 
 const app = new Hono();
 
 // Middleware
-app.use("*", logger());
+app.use("*", httpLogger());
 app.use("*", timing());
 app.use(
   "*",
@@ -76,8 +85,9 @@ app.use(
 app.use("*", rateLimit({ windowMs: 60000, max: 100 }));
 
 // SIP forwarding endpoint - SignalWire calls this to route calls to LiveKit SIP bridge
-// Must be public (no auth) since SignalWire calls it directly
-app.post("/sip/forward", (c) => {
+// Public (no JWT) since SignalWire calls it directly, but signature-verified so
+// only the telephony provider can trigger call routing.
+app.post("/sip/forward", verifyTelephonyWebhook(), (c) => {
   const livekitSipHost = process.env.LIVEKIT_SIP_HOST || "178.156.205.145";
   const livekitSipPort = process.env.LIVEKIT_SIP_PORT || "5060";
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -93,6 +103,9 @@ app.post("/sip/forward", (c) => {
 app.route("/health", healthRoutes);
 app.route("/api/chat", chatRoutes); // Chat widget is public
 app.route("/internal", internalRoutes); // LiveKit agent API (own auth via INTERNAL_API_KEY)
+// SignalWire voicemail webhooks: public path (not under /api/* JWT), each
+// endpoint signature-verified inside the router so the provider can reach them.
+app.route("/webhooks/voicemail", voicemailWebhookRoutes);
 
 // User-only auth (no tenant required) for setup and tenant listing
 app.use("/api/setup/*", userAuthMiddleware());
@@ -140,7 +153,9 @@ app.notFound((c) => {
 
 // Error handler
 app.onError((err, c) => {
-  console.error("[ERROR]", err);
+  logger.error({ err }, "[ERROR]");
+  // No-op unless a Sentry/GlitchTip DSN is configured.
+  captureException(err, { path: c.req.path, method: c.req.method });
   return c.json(
     {
       error: "Internal server error",
@@ -154,49 +169,61 @@ app.onError((err, c) => {
 const port = parseInt(process.env.PORT || "3001", 10);
 
 async function start() {
-  console.log("[STARTUP] Initializing Soniq API...");
+  logger.info("[STARTUP] Initializing Soniq API...");
+
+  // Initialize error reporting first so startup failures are captured.
+  // No-op when neither SENTRY_DSN nor GLITCHTIP_DSN is set.
+  initErrorReporting();
 
   const isProduction = process.env.NODE_ENV === "production";
 
-  // Validate critical environment variables at startup
-  const requiredEnv = ["DATABASE_URL"];
+  // Validate critical environment variables at startup.
+  // ENCRYPTION_KEY is required in ALL environments so encrypt/decrypt fail
+  // closed and never silently persist plaintext.
+  const requiredEnv = ["DATABASE_URL", "ENCRYPTION_KEY"];
   if (isProduction) {
-    requiredEnv.push("FRONTEND_URL", "BACKEND_URL", "ENCRYPTION_KEY");
+    requiredEnv.push("FRONTEND_URL", "BACKEND_URL");
   }
   const recommendedEnv = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"];
 
   const missingRequired = requiredEnv.filter((key) => !process.env[key]);
   if (missingRequired.length > 0) {
-    console.error(
-      `[STARTUP] FATAL: Missing required env vars: ${missingRequired.join(", ")}`,
-    );
+    logger.error(`[STARTUP] FATAL: Missing required env vars: ${missingRequired.join(", ")}`);
+    process.exit(1);
+  }
+
+  // Inbound telephony webhooks are signature-verified. In production a signing
+  // secret MUST be present, otherwise every SignalWire webhook fails closed
+  // (breaking calls) - fail fast at boot rather than ship broken telephony.
+  if (
+    isProduction &&
+    !process.env.SIGNALWIRE_SIGNING_KEY &&
+    !process.env.SIGNALWIRE_WEBHOOK_SECRET
+  ) {
+    logger.error("[STARTUP] FATAL: production requires SIGNALWIRE_SIGNING_KEY (or SIGNALWIRE_WEBHOOK_SECRET) for webhook signature verification");
     process.exit(1);
   }
 
   const missingRecommended = recommendedEnv.filter((key) => !process.env[key]);
   if (missingRecommended.length > 0) {
-    console.warn(
-      `[STARTUP] WARNING: Missing recommended env vars: ${missingRecommended.join(", ")}`,
-    );
+    logger.warn(`[STARTUP] WARNING: Missing recommended env vars: ${missingRecommended.join(", ")}`);
   }
 
   if (!isProduction) {
-    console.warn(
-      `[STARTUP] WARNING: NODE_ENV is "${process.env.NODE_ENV || "undefined"}" - set to "production" for production deploys`,
-    );
+    logger.warn(`[STARTUP] WARNING: NODE_ENV is "${process.env.NODE_ENV || "undefined"}" - set to "production" for production deploys`);
   }
 
   // Initialize database connection pool
   initDatabase();
-  console.log("[STARTUP] Database pool initialized");
+  logger.info("[STARTUP] Database pool initialized");
 
   // Initialize tenant cache for low-latency webhook responses
   await initTenantCache();
-  console.log("[STARTUP] Tenant cache initialized");
+  logger.info("[STARTUP] Tenant cache initialized");
 
   // Start background job scheduler
   startScheduler();
-  console.log("[STARTUP] Job scheduler started");
+  logger.info("[STARTUP] Job scheduler started");
 
   // Start HTTP server
   serve(
@@ -205,18 +232,16 @@ async function start() {
       port,
     },
     (info) => {
-      console.log(`[STARTUP] Server running on http://localhost:${info.port}`);
-      console.log(
-        "[STARTUP] Voice stack: LiveKit Agents (Deepgram + OpenAI + Cartesia)",
-      );
+      logger.info(`[STARTUP] Server running on http://localhost:${info.port}`);
+      logger.info("[STARTUP] Voice stack: LiveKit Agents (Deepgram + OpenAI + Cartesia)");
     },
   );
 
   // Graceful shutdown handlers
   const shutdown = async (signal: string) => {
-    console.log(`[SHUTDOWN] Received ${signal}, closing connections...`);
+    logger.info(`[SHUTDOWN] Received ${signal}, closing connections...`);
     await closePool();
-    console.log("[SHUTDOWN] Database pool closed");
+    logger.info("[SHUTDOWN] Database pool closed");
     process.exit(0);
   };
 
@@ -225,7 +250,8 @@ async function start() {
 }
 
 start().catch((err) => {
-  console.error("[FATAL] Failed to start server:", err);
+  logger.error({ err }, "[FATAL] Failed to start server:");
+  captureException(err, { phase: "startup" });
   process.exit(1);
 });
 

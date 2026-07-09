@@ -3,6 +3,7 @@
 
 import { queryAll } from "../database/client.js";
 import { updateOne } from "../database/query-helpers.js";
+import { logger } from "../../lib/logger.js";
 
 export interface EngagementMetrics {
   totalCalls: number;
@@ -242,7 +243,7 @@ export async function updateAllEngagementScores(tenantId: string): Promise<{
   );
 
   if (!contacts || contacts.length === 0) {
-    console.error("[ENGAGEMENT] No contacts found for tenant:", tenantId);
+    logger.error({ tenantId }, "[ENGAGEMENT] No contacts found for tenant:");
     return { updated: 0, failed: 0 };
   }
 
@@ -266,10 +267,7 @@ export async function updateAllEngagementScores(tenantId: string): Promise<{
 
       updated++;
     } catch (err) {
-      console.error(
-        `[ENGAGEMENT] Failed to update contact ${contact.id}:`,
-        err,
-      );
+      logger.error({ err }, `[ENGAGEMENT] Failed to update contact ${contact.id}:`);
       failed++;
     }
   }

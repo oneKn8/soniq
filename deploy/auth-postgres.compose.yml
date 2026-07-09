@@ -1,0 +1,81 @@
+# Soniq auth + database tier (self-hosted) -- TEMPLATE, NOT YET DEPLOYED.
+#
+# Stands up a DEDICATED Postgres plus lean self-hosted auth (GoTrue = Supabase
+# Auth) so the app has ZERO cloud dependency: DATABASE_URL -> this Postgres,
+# SUPABASE_URL -> gotrue via Traefik. We deliberately DO NOT run the full
+# Supabase stack (postgrest/kong/studio/realtime/storage): the Soniq app only
+# uses Supabase for AUTH (data goes through the Hono API's raw pg pool), and the
+# box's RAM is tight. Realtime is replaced by the dashboard's existing polling.
+#
+# This is a starting template for the deferred DB pass. It has NOT been stood up
+# or tested against the box. Before `docker compose up` you must:
+#   1. Generate GOTRUE_JWT_SECRET and matching anon/service_role JWTs (.env.selfhost).
+#   2. Run the schema migrations + create the app_api role and RLS policies
+#      (the deferred DB work -- authored WITH Santo, not in this branch).
+#   3. Add Traefik labels / Coolify routing so /auth/v1 on SUPABASE_URL -> gotrue,
+#      matching how Coolify's Traefik already fronts the other services.
+# Prefer deploying these through Coolify (which manages Traefik + TLS + backups)
+# rather than a raw `docker compose up`; this file documents the desired shape.
+
+name: soniq-authdb
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - soniq-db-data:/var/lib/postgresql/data
+    # Not published to the host: reached only over the internal network by the
+    # API container and gotrue. Bind to localhost if host access is needed.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # GoTrue = Supabase Auth. Lightweight; provides /auth/v1/* that the
+  # @supabase/supabase-js client in the API + dashboard talk to.
+  auth:
+    image: supabase/gotrue:v2.170.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      PORT: "9999"
+      GOTRUE_DB_DRIVER: postgres
+      # gotrue manages its own `auth` schema in the dedicated DB.
+      GOTRUE_DB_DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?search_path=auth
+      GOTRUE_SITE_URL: ${SITE_URL}
+      GOTRUE_URI_ALLOW_LIST: ${SITE_URL}
+      GOTRUE_JWT_SECRET: ${GOTRUE_JWT_SECRET}
+      GOTRUE_JWT_EXP: "3600"
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: ${GOTRUE_MAILER_AUTOCONFIRM}
+      GOTRUE_SMTP_HOST: ${GOTRUE_SMTP_HOST}
+      GOTRUE_SMTP_PORT: ${GOTRUE_SMTP_PORT}
+      GOTRUE_SMTP_USER: ${GOTRUE_SMTP_USER}
+      GOTRUE_SMTP_PASS: ${GOTRUE_SMTP_PASS}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${GOTRUE_SMTP_ADMIN_EMAIL}
+    # Coolify/Traefik should route ${SUPABASE_URL}/auth/v1/* -> this service:9999.
+    # (The @supabase/supabase-js client calls `${SUPABASE_URL}/auth/v1/...`.)
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+volumes:
+  soniq-db-data:

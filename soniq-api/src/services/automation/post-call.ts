@@ -4,7 +4,8 @@
 
 import { insertOne, updateOne } from "../database/query-helpers.js";
 import { tenantQueryOne } from "../database/pool.js";
-import { getPipelineConfig } from "../../config/industry-pipeline.js";
+import { getPipelineConfig } from "../../config/universal-pipeline.js";
+import { logger } from "../../lib/logger.js";
 
 interface PostCallContext {
   tenantId: string;
@@ -15,7 +16,6 @@ interface PostCallContext {
   outcomeType: string;
   durationSeconds: number;
   status: string;
-  industry: string;
 }
 
 interface ContactRow {
@@ -40,7 +40,7 @@ export async function runPostCallAutomation(
 ): Promise<void> {
   if (!ctx.contactId) return;
 
-  const config = getPipelineConfig(ctx.industry);
+  const config = getPipelineConfig();
 
   // Get contact info for rule evaluation
   const contact = await tenantQueryOne<ContactRow>(
@@ -79,9 +79,7 @@ export async function runPostCallAutomation(
           { id: ctx.contactId },
         );
       }
-      console.log(
-        `[AUTOMATION] Deal created (won) for booking: ${contactName}`,
-      );
+      logger.info(`[AUTOMATION] Deal created (won) for booking: ${contactName}`);
       return;
     }
 
@@ -98,7 +96,7 @@ export async function runPostCallAutomation(
         source: "auto",
         created_by: "auto",
       });
-      console.log(`[AUTOMATION] Task created for escalation: ${contactName}`);
+      logger.info(`[AUTOMATION] Task created for escalation: ${contactName}`);
       return;
     }
 
@@ -115,7 +113,7 @@ export async function runPostCallAutomation(
         source: "auto",
         created_by: "auto",
       });
-      console.log(`[AUTOMATION] Task created for missed call: ${contactName}`);
+      logger.info(`[AUTOMATION] Task created for missed call: ${contactName}`);
       return;
     }
 
@@ -130,7 +128,7 @@ export async function runPostCallAutomation(
         { status: "vip", updated_at: now.toISOString() },
         { id: ctx.contactId },
       );
-      console.log(`[AUTOMATION] Contact upgraded to VIP: ${contactName}`);
+      logger.info(`[AUTOMATION] Contact upgraded to VIP: ${contactName}`);
     }
 
     // Rule 5: First-time caller (inquiry) -> new deal + new lead
@@ -152,11 +150,9 @@ export async function runPostCallAutomation(
           { id: ctx.contactId },
         );
       }
-      console.log(
-        `[AUTOMATION] Deal created (new lead) for first caller: ${contactName}`,
-      );
+      logger.info(`[AUTOMATION] Deal created (new lead) for first caller: ${contactName}`);
     }
   } catch (error) {
-    console.error("[AUTOMATION] Post-call automation error:", error);
+    logger.error({ error }, "[AUTOMATION] Post-call automation error:");
   }
 }

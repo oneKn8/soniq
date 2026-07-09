@@ -1,5 +1,6 @@
 import { queryAll, queryOne } from "./client.js";
 import type { Tenant } from "../../types/database.js";
+import { logger } from "../../lib/logger.js";
 
 /**
  * In-Memory Tenant Cache
@@ -13,7 +14,7 @@ import type { Tenant } from "../../types/database.js";
 
 // Cache storage
 const tenantCache = new Map<string, Tenant>();
-const vapiPhoneIdCache = new Map<string, Tenant>(); // Key by vapi_phone_number_id
+const providerPhoneIdCache = new Map<string, Tenant>(); // Key by provider phone number ID
 let cacheInitialized = false;
 let lastRefresh: Date | null = null;
 
@@ -31,11 +32,11 @@ export async function initTenantCache(): Promise<void> {
     // Set up periodic refresh
     setInterval(() => {
       refreshCache().catch((err) => {
-        console.error("[CACHE] Failed to refresh tenant cache:", err);
+        logger.error({ err }, "[CACHE] Failed to refresh tenant cache:");
       });
     }, REFRESH_INTERVAL_MS);
   } catch (err) {
-    console.error("[CACHE] Failed to initialize tenant cache:", err);
+    logger.error({ err }, "[CACHE] Failed to initialize tenant cache:");
     // Don't throw - we can still query DB as fallback
   }
 }
@@ -52,7 +53,7 @@ async function refreshCache(): Promise<void> {
 
   // Clear and rebuild cache
   tenantCache.clear();
-  vapiPhoneIdCache.clear();
+  providerPhoneIdCache.clear();
 
   for (const tenant of tenants) {
     // Key by phone number for fast lookup during incoming calls
@@ -61,16 +62,16 @@ async function refreshCache(): Promise<void> {
     }
     // Also key by tenant ID for other lookups
     tenantCache.set(`id:${tenant.id}`, tenant);
-    // Key by Vapi phone number ID for direct webhook lookup
+    // Key by provider phone number ID for direct webhook lookup
     if (tenant.vapi_phone_number_id) {
-      vapiPhoneIdCache.set(tenant.vapi_phone_number_id, tenant);
+      providerPhoneIdCache.set(tenant.vapi_phone_number_id, tenant);
     }
   }
 
   lastRefresh = new Date();
   const latency = Date.now() - startTime;
 
-  console.log(`[CACHE] Refreshed ${tenants.length} tenants in ${latency}ms`);
+  logger.info(`[CACHE] Refreshed ${tenants.length} tenants in ${latency}ms`);
 }
 
 /**
@@ -90,13 +91,13 @@ export function getTenantById(tenantId: string): Tenant | null {
 }
 
 /**
- * Get tenant by Vapi phone number ID (for webhook lookup)
- * FAST: O(1) from cache, no DB query or Vapi API call
+ * Get tenant by provider phone number ID (for webhook lookup)
+ * FAST: O(1) from cache, no DB query or provider API call
  */
-export function getTenantByVapiPhoneId(
-  vapiPhoneNumberId: string,
+export function getTenantByProviderPhoneId(
+  providerPhoneNumberId: string,
 ): Tenant | null {
-  return vapiPhoneIdCache.get(vapiPhoneNumberId) || null;
+  return providerPhoneIdCache.get(providerPhoneNumberId) || null;
 }
 
 /**
@@ -117,7 +118,7 @@ export async function getTenantBySipUri(
   }
 
   // Fallback to DB query via phone_configurations
-  console.log("[CACHE] SIP cache miss, querying database for:", cleaned);
+  logger.info({ cleaned }, "[CACHE] SIP cache miss, querying database for:");
 
   try {
     const result = await queryOne<{ tenant_id: string }>(
@@ -173,7 +174,7 @@ export async function getTenantByPhoneWithFallback(
   }
 
   // Fallback to DB query
-  console.log("[CACHE] Cache miss, querying database for:", normalized);
+  logger.info({ normalized }, "[CACHE] Cache miss, querying database for:");
 
   try {
     const tenant = await queryOne<Tenant>(

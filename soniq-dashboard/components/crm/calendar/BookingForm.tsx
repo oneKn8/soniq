@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createBooking, updateBooking, lookupByPhone } from "@/lib/api";
-import { useIndustry } from "@/context/IndustryContext";
+import { useTerminology } from "@/lib/terminology";
 import type { Booking, Contact } from "@/types/crm";
 
 // ============================================================================
@@ -78,7 +78,7 @@ export function BookingForm({
   initialTime,
   onSuccess,
 }: BookingFormProps) {
-  const { transactionLabel } = useIndustry();
+  const { transactionLabel } = useTerminology();
   const isEditing = !!booking;
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isLookingUp, setIsLookingUp] = React.useState(false);

@@ -165,9 +165,6 @@ export default function IntegrationsTab() {
           (i) => i.category === category.id,
         );
 
-        // Only show relevant categories based on industry
-        if (category.id === "pms" && config.industry !== "hotel") return null;
-
         return (
           <section key={category.id} className="space-y-4">
             <div className="border-b border-zinc-800 pb-2">

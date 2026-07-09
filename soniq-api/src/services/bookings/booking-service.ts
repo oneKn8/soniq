@@ -5,6 +5,7 @@ import {
   updateOne,
   rpc,
   paginatedQuery,
+  safeSortColumn,
 } from "../database/query-helpers.js";
 import {
   BookingFilters,
@@ -133,6 +134,19 @@ export async function rescheduleBooking(
   });
 }
 
+// Allowed columns for ORDER BY (prevents SQL injection via sort_by param)
+const BOOKING_SORT_COLUMNS = new Set([
+  "booking_date",
+  "booking_time",
+  "created_at",
+  "updated_at",
+  "customer_name",
+  "status",
+  "booking_type",
+  "amount_cents",
+  "duration_minutes",
+]);
+
 export async function searchBookings(
   tenantId: string,
   filters: BookingFilters = {},
@@ -140,7 +154,11 @@ export async function searchBookings(
 ): Promise<PaginatedResult<Booking>> {
   const limit = pagination.limit || 20;
   const offset = pagination.offset || 0;
-  const sortBy = pagination.sort_by || "booking_date";
+  const sortBy = safeSortColumn(
+    pagination.sort_by,
+    BOOKING_SORT_COLUMNS,
+    "booking_date",
+  );
   const sortOrder = pagination.sort_order || "asc";
 
   // Build WHERE clause dynamically

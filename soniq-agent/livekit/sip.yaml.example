@@ -1,0 +1,21 @@
+# LiveKit SIP Server Configuration (template)
+# Copy to sip.yaml and fill in real values. sip.yaml is gitignored.
+# Bridges SIP calls from SignalWire to LiveKit rooms.
+# api_key / api_secret MUST match the LiveKit server keys.
+
+log_level: info
+
+# LiveKit server connection
+api_key: APIxxxxxxxxxxxxxxxxxxxxxxx
+api_secret: replace-with-livekit-api-secret
+ws_url: ws://localhost:7880
+
+# Redis (must match LiveKit server)
+redis:
+  address: localhost:6379
+
+# SIP signaling port
+sip_port: 5060
+
+# RTP media port range
+rtp_port: 10000-20000

@@ -2,7 +2,8 @@
 
 import React from "react";
 import { useConfig } from "@/context/ConfigContext";
-import { useIndustry } from "@/context/IndustryContext";
+import { useTenant } from "@/context/TenantContext";
+import { useTerminology } from "@/lib/terminology";
 import { formatCurrency, formatPercentage } from "@/lib/mockData";
 import {
   TrendingUp,
@@ -39,7 +40,8 @@ interface MetricWithBenchmark {
 
 export default function SystemHealth() {
   const { config, metrics, industryMetrics } = useConfig();
-  const { transactionPluralLabel, revenueLabel, industryLabel } = useIndustry();
+  const { transactionPluralLabel, revenueLabel } = useTerminology();
+  const { currentTenant } = useTenant();
 
   if (!config || !metrics) {
     return (
@@ -127,7 +129,7 @@ export default function SystemHealth() {
           <section>
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3 flex items-center gap-2">
               <Users className="h-3 w-3" />
-              {industryLabel} Metrics
+              {currentTenant?.business_name ?? "Business"} Metrics
             </h3>
             <div className="space-y-3">
               {industryMetrics.map(
