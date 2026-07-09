@@ -14,7 +14,7 @@ const faqs = [
   {
     question: "Can I customize the AI responses for my business?",
     answer:
-      "Absolutely! You can customize greetings, responses, business hours, booking rules, and more. We also offer 27 industry-specific presets that you can further customize to match your brand voice.",
+      "Absolutely! You can customize greetings, responses, business hours, booking rules, and exactly which capabilities the agent handles, booking, orders, FAQs, transfers, and voicemail, to match your brand voice.",
   },
   {
     question: "How long does setup take?",

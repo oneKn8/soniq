@@ -31,7 +31,7 @@ const testimonials = [
   },
   {
     quote:
-      "Setup took 15 minutes and it just works. The industry presets meant zero configuration for our restaurant booking flow.",
+      "Setup took 15 minutes and it just works. Turning on our booking flow took zero configuration.",
     name: "Maria Santos",
     title: "Owner, Bella Italia Restaurant",
   },

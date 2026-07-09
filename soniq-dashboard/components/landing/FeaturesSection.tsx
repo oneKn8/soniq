@@ -56,9 +56,9 @@ const features = [
     glowColor: "rgba(236, 72, 153, 0.3)",
   },
   {
-    title: "27 Industry Presets",
+    title: "Set Up in Minutes",
     description:
-      "Pre-configured for dental, medical, legal, automotive, restaurant, and more.",
+      "Turn on the capabilities you need, booking, orders, FAQs, transfers, and voicemail, and shape the agent to your business.",
     icon: Globe,
     className: "md:col-span-1",
     gradient: "from-amber-500/20 via-orange-500/10 to-yellow-500/20",
