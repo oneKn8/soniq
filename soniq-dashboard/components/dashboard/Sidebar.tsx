@@ -11,7 +11,6 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Zap,
   LogOut,
   Users,
   Calendar,
@@ -24,6 +23,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTerminology } from "@/lib/terminology";
+import { SoniqMark } from "@/components/brand/SoniqMark";
 
 // Route mapping for navigation
 const VIEW_ROUTES: Record<
@@ -108,6 +108,11 @@ export default function Sidebar() {
   const { dealPluralLabel } = useTerminology();
   const { sidebarCollapsed } = uiState;
 
+  // The configuration reset is a developer-only tool: only expose it in
+  // non-production builds or for accounts with the developer role.
+  const showDevReset =
+    process.env.NODE_ENV !== "production" || config?.userRole === "developer";
+
   const NAV_SECTIONS = React.useMemo(
     () => buildNavSections(dealPluralLabel),
     [dealPluralLabel],
@@ -154,13 +159,13 @@ export default function Sidebar() {
       <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-4">
         {!sidebarCollapsed && (
           <div className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-primary" />
+            <SoniqMark className="h-6 w-6 shrink-0" decorative />
             <span className="font-semibold text-sidebar-foreground">
               Soniq
             </span>
           </div>
         )}
-        {sidebarCollapsed && <Zap className="mx-auto h-5 w-5 text-primary" />}
+        {sidebarCollapsed && <SoniqMark className="mx-auto h-6 w-6" />}
       </div>
 
       {/* Navigation */}
@@ -241,20 +246,22 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* Reset (Dev) */}
-      <div className="border-t border-sidebar-border p-2">
-        <button
-          onClick={resetConfig}
-          className={cn(
-            "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-destructive",
-            sidebarCollapsed && "justify-center",
-          )}
-          title="Reset Configuration"
-        >
-          <LogOut className="h-4 w-4" />
-          {!sidebarCollapsed && <span>Reset</span>}
-        </button>
-      </div>
+      {/* Reset (developer only) */}
+      {showDevReset && (
+        <div className="border-t border-sidebar-border p-2">
+          <button
+            onClick={resetConfig}
+            className={cn(
+              "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-destructive",
+              sidebarCollapsed && "justify-center",
+            )}
+            title="Reset Configuration"
+          >
+            <LogOut className="h-4 w-4" />
+            {!sidebarCollapsed && <span>Reset</span>}
+          </button>
+        </div>
+      )}
     </aside>
   );
 }
