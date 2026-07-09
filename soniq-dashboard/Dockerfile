@@ -16,8 +16,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Build-time environment variables (NEXT_PUBLIC_ vars must be set at build time)
-ARG NEXT_PUBLIC_API_URL=https://api.soniqai.com
-ARG NEXT_PUBLIC_APP_URL=https://app.soniqai.com
+ARG NEXT_PUBLIC_API_URL=https://api.soniq.ai
+ARG NEXT_PUBLIC_APP_URL=https://app.soniq.ai
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 
