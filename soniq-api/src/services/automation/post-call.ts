@@ -62,21 +62,28 @@ export async function runPostCallAutomation(
   try {
     // Rule 1: Booking outcome -> won deal + converted
     if (ctx.outcomeType === "booking") {
-      await insertOne("deals", {
-        tenant_id: ctx.tenantId,
-        name: `${contactName} - ${config.dealLabel}`,
-        stage: config.completedStage,
-        source: "call",
-        contact_id: ctx.contactId,
-        call_id: ctx.callId,
-        created_by: "auto",
-      });
+      await insertOne(
+        "deals",
+        {
+          tenant_id: ctx.tenantId,
+          name: `${contactName} - ${config.dealLabel}`,
+          stage: config.completedStage,
+          source: "call",
+          contact_id: ctx.contactId,
+          call_id: ctx.callId,
+          created_by: "auto",
+        },
+        "*",
+        ctx.tenantId,
+      );
 
       if (contact.lead_status !== "converted") {
         await updateOne(
           "contacts",
           { lead_status: "converted", updated_at: now.toISOString() },
           { id: ctx.contactId },
+          "*",
+          ctx.tenantId,
         );
       }
       logger.info(`[AUTOMATION] Deal created (won) for booking: ${contactName}`);
@@ -85,34 +92,44 @@ export async function runPostCallAutomation(
 
     // Rule 2: Escalation -> follow-up task
     if (ctx.outcomeType === "escalation") {
-      await insertOne("tasks", {
-        tenant_id: ctx.tenantId,
-        title: `Follow up: escalated call from ${contactName}`,
-        type: "call_back",
-        priority: "high",
-        due_date: tomorrow,
-        contact_id: ctx.contactId,
-        call_id: ctx.callId,
-        source: "auto",
-        created_by: "auto",
-      });
+      await insertOne(
+        "tasks",
+        {
+          tenant_id: ctx.tenantId,
+          title: `Follow up: escalated call from ${contactName}`,
+          type: "call_back",
+          priority: "high",
+          due_date: tomorrow,
+          contact_id: ctx.contactId,
+          call_id: ctx.callId,
+          source: "auto",
+          created_by: "auto",
+        },
+        "*",
+        ctx.tenantId,
+      );
       logger.info(`[AUTOMATION] Task created for escalation: ${contactName}`);
       return;
     }
 
     // Rule 3: Missed or very short call (<10s) -> callback task
     if (ctx.status === "missed" || ctx.durationSeconds < 10) {
-      await insertOne("tasks", {
-        tenant_id: ctx.tenantId,
-        title: `Missed call from ${contactName}`,
-        type: "call_back",
-        priority: "high",
-        due_date: today,
-        contact_id: ctx.contactId,
-        call_id: ctx.callId,
-        source: "auto",
-        created_by: "auto",
-      });
+      await insertOne(
+        "tasks",
+        {
+          tenant_id: ctx.tenantId,
+          title: `Missed call from ${contactName}`,
+          type: "call_back",
+          priority: "high",
+          due_date: today,
+          contact_id: ctx.contactId,
+          call_id: ctx.callId,
+          source: "auto",
+          created_by: "auto",
+        },
+        "*",
+        ctx.tenantId,
+      );
       logger.info(`[AUTOMATION] Task created for missed call: ${contactName}`);
       return;
     }
@@ -127,27 +144,36 @@ export async function runPostCallAutomation(
         "contacts",
         { status: "vip", updated_at: now.toISOString() },
         { id: ctx.contactId },
+        "*",
+        ctx.tenantId,
       );
       logger.info(`[AUTOMATION] Contact upgraded to VIP: ${contactName}`);
     }
 
     // Rule 5: First-time caller (inquiry) -> new deal + new lead
     if (contact.total_calls <= 1 && ctx.outcomeType === "inquiry") {
-      await insertOne("deals", {
-        tenant_id: ctx.tenantId,
-        name: `${contactName} - New ${config.dealLabel}`,
-        stage: config.defaultStage,
-        source: "call",
-        contact_id: ctx.contactId,
-        call_id: ctx.callId,
-        created_by: "auto",
-      });
+      await insertOne(
+        "deals",
+        {
+          tenant_id: ctx.tenantId,
+          name: `${contactName} - New ${config.dealLabel}`,
+          stage: config.defaultStage,
+          source: "call",
+          contact_id: ctx.contactId,
+          call_id: ctx.callId,
+          created_by: "auto",
+        },
+        "*",
+        ctx.tenantId,
+      );
 
       if (!contact.lead_status || contact.lead_status === "new") {
         await updateOne(
           "contacts",
           { lead_status: "new", updated_at: now.toISOString() },
           { id: ctx.contactId },
+          "*",
+          ctx.tenantId,
         );
       }
       logger.info(`[AUTOMATION] Deal created (new lead) for first caller: ${contactName}`);

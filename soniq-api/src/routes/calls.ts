@@ -9,7 +9,7 @@ export const callsRoutes = new Hono();
 interface CallRow {
   id: string;
   tenant_id: string;
-  vapi_call_id: string | null;
+  provider_call_id: string | null;
   direction: string;
   status: string;
   caller_phone: string | null;
@@ -110,7 +110,7 @@ callsRoutes.get("/", async (c) => {
       tenantId,
       `SELECT
         id,
-        vapi_call_id,
+        provider_call_id,
         direction,
         status,
         caller_phone,

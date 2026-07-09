@@ -1,5 +1,5 @@
 // Availability Service - Slot management
-import { queryOne, queryAll } from "../database/client.js";
+import { queryOne, tenantQueryOne, tenantQueryAll } from "../database/client.js";
 import {
   insertOne,
   updateOne,
@@ -39,7 +39,7 @@ export async function getAvailableSlots(
 
   sql += ` ORDER BY start_time`;
 
-  return queryAll<AvailabilitySlot>(sql, params);
+  return tenantQueryAll<AvailabilitySlot>(tenantId, sql, params);
 }
 
 /**
@@ -70,7 +70,7 @@ export async function getAvailableSlotsForRange(
 
   sql += ` ORDER BY slot_date, start_time`;
 
-  return queryAll<AvailabilitySlot>(sql, params);
+  return tenantQueryAll<AvailabilitySlot>(tenantId, sql, params);
 }
 
 /**
@@ -104,7 +104,12 @@ export async function createSlot(
     is_generated: false,
   };
 
-  return insertOne<AvailabilitySlot>("availability_slots", slotData);
+  return insertOne<AvailabilitySlot>(
+    "availability_slots",
+    slotData,
+    "*",
+    tenantId,
+  );
 }
 
 /**
@@ -124,6 +129,8 @@ export async function updateSlot(
     "availability_slots",
     safeUpdates,
     { tenant_id: tenantId, id },
+    "*",
+    tenantId,
   );
 
   if (!result) {
@@ -158,10 +165,11 @@ export async function unblockSlot(
  * Delete an availability slot
  */
 export async function deleteSlot(tenantId: string, id: string): Promise<void> {
-  const deleted = await deleteRows("availability_slots", {
-    tenant_id: tenantId,
-    id,
-  });
+  const deleted = await deleteRows(
+    "availability_slots",
+    { tenant_id: tenantId, id },
+    tenantId,
+  );
 
   if (deleted === 0) {
     throw new Error("Failed to delete slot: slot not found");
@@ -197,11 +205,11 @@ export async function checkAvailability(
 
   sql += ` LIMIT 1`;
 
-  const slot = await queryOne<{
+  const slot = await tenantQueryOne<{
     id: string;
     total_capacity: number;
     booked_count: number;
-  }>(sql, params);
+  }>(tenantId, sql, params);
 
   if (!slot) {
     return false;
@@ -280,7 +288,7 @@ export async function generateSlotsFromOperatingHours(
       "availability_slots",
       batch,
       ["tenant_id", "resource_id", "slot_date", "start_time"],
-      { ignoreDuplicates: true },
+      { ignoreDuplicates: true, tenantId },
     );
     inserted += count;
   }

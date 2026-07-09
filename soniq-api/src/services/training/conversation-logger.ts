@@ -1,4 +1,4 @@
-import { query } from "../database/client.js";
+import { tenantQuery } from "../database/client.js";
 import { insertOne, updateOne } from "../database/query-helpers.js";
 import { logger } from "../../lib/logger.js";
 
@@ -43,22 +43,28 @@ interface ConversationLogRow {
 class ConversationLogger {
   private activeConversations: Map<
     string,
-    { id: string; messages: ConversationMessage[] }
+    { id: string; tenantId: string; messages: ConversationMessage[] }
   > = new Map();
 
   async startConversation(input: ConversationLogInput): Promise<string> {
-    const data = await insertOne<ConversationLogRow>("conversation_logs", {
-      tenant_id: input.tenantId,
-      call_id: input.callId,
-      session_id: input.sessionId,
-      industry: input.industry,
-      scenario_type: input.scenarioType || "general",
-      language: input.language || "en",
-      messages: JSON.stringify([]),
-    });
+    const data = await insertOne<ConversationLogRow>(
+      "conversation_logs",
+      {
+        tenant_id: input.tenantId,
+        call_id: input.callId,
+        session_id: input.sessionId,
+        industry: input.industry,
+        scenario_type: input.scenarioType || "general",
+        language: input.language || "en",
+        messages: JSON.stringify([]),
+      },
+      "*",
+      input.tenantId,
+    );
 
     this.activeConversations.set(input.sessionId, {
       id: data.id,
+      tenantId: input.tenantId,
       messages: [],
     });
 
@@ -126,7 +132,8 @@ class ConversationLogger {
     if (!conversation) return;
 
     try {
-      await query(
+      await tenantQuery(
+        conversation.tenantId,
         `UPDATE conversation_logs
          SET messages = $1,
              turn_count = $2,
@@ -238,7 +245,13 @@ class ConversationLogger {
     }
 
     try {
-      await updateOne("conversation_logs", updateData, { id: conversation.id });
+      await updateOne(
+        "conversation_logs",
+        updateData,
+        { id: conversation.id },
+        "*",
+        conversation.tenantId,
+      );
 
       logger.info(`[TRAINING] Ended conversation: ${conversation.id} (${conversation.messages.length} turns, quality: ${qualityScore})`);
     } catch (error) {

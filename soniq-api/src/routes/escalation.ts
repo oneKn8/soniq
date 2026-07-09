@@ -2,8 +2,9 @@ import { Hono } from "hono";
 import { z } from "zod";
 import {
   queryOne,
-  queryAll,
-  transaction,
+  tenantQueryOne,
+  tenantQueryAll,
+  tenantTransaction,
 } from "../services/database/client.js";
 import {
   insertOne,
@@ -334,10 +335,11 @@ escalationRoutes.get("/queue", async (c) => {
       LIMIT $${paramIndex}
     `;
 
-    const rows = await queryAll<EscalationQueueRow>(queueSql, [
-      ...params,
-      limit,
-    ]);
+    const rows = await tenantQueryAll<EscalationQueueRow>(
+      membership.tenant_id,
+      queueSql,
+      [...params, limit],
+    );
 
     const nowMs = Date.now();
     const queue = (rows || []).map((row) => {
@@ -434,11 +436,11 @@ escalationRoutes.put("/queue/:id/take", async (c) => {
       WHERE id = $2 AND tenant_id = $3
       RETURNING id
     `;
-    const updated = await queryOne<{ id: string }>(updateSql, [
-      new Date().toISOString(),
-      id,
+    const updated = await tenantQueryOne<{ id: string }>(
       membership.tenant_id,
-    ]);
+      updateSql,
+      [new Date().toISOString(), id, membership.tenant_id],
+    );
 
     if (!updated) {
       return c.json({ error: "Queue item not found" }, 404);
@@ -485,11 +487,11 @@ escalationRoutes.put("/queue/:id/resolve", async (c) => {
       WHERE id = $2 AND tenant_id = $3
       RETURNING id
     `;
-    const updated = await queryOne<{ id: string }>(updateSql, [
-      new Date().toISOString(),
-      id,
+    const updated = await tenantQueryOne<{ id: string }>(
       membership.tenant_id,
-    ]);
+      updateSql,
+      [new Date().toISOString(), id, membership.tenant_id],
+    );
 
     if (!updated) {
       return c.json({ error: "Queue item not found" }, 404);
@@ -546,11 +548,11 @@ escalationRoutes.put("/queue/:id/schedule-callback", async (c) => {
       WHERE id = $2 AND tenant_id = $3
       RETURNING id
     `;
-    const updated = await queryOne<{ id: string }>(updateSql, [
-      note,
-      id,
+    const updated = await tenantQueryOne<{ id: string }>(
       membership.tenant_id,
-    ]);
+      updateSql,
+      [note, id, membership.tenant_id],
+    );
 
     if (!updated) {
       return c.json({ error: "Queue item not found" }, 404);
@@ -592,9 +594,11 @@ escalationRoutes.get("/contacts", async (c) => {
       WHERE tenant_id = $1
       ORDER BY sort_order ASC
     `;
-    const contacts = await queryAll<EscalationContactRow>(contactsSql, [
+    const contacts = await tenantQueryAll<EscalationContactRow>(
       membership.tenant_id,
-    ]);
+      contactsSql,
+      [membership.tenant_id],
+    );
 
     return c.json({ contacts: contacts || [] });
   } catch (error) {
@@ -642,9 +646,11 @@ escalationRoutes.post("/contacts", async (c) => {
       ORDER BY sort_order DESC
       LIMIT 1
     `;
-    const existing = await queryOne<{ sort_order: number }>(maxOrderSql, [
+    const existing = await tenantQueryOne<{ sort_order: number }>(
       tenantId,
-    ]);
+      maxOrderSql,
+      [tenantId],
+    );
     const nextOrder = existing ? existing.sort_order + 1 : 0;
 
     // If setting as primary, unset other primaries
@@ -653,6 +659,8 @@ escalationRoutes.post("/contacts", async (c) => {
         "escalation_contacts",
         { is_primary: false },
         { tenant_id: tenantId },
+        "*",
+        tenantId,
       );
     }
 
@@ -670,6 +678,8 @@ escalationRoutes.post("/contacts", async (c) => {
           : null,
         sort_order: nextOrder,
       },
+      "*",
+      tenantId,
     );
 
     return c.json(contact, 201);
@@ -715,7 +725,11 @@ escalationRoutes.put("/contacts/:id", async (c) => {
       FROM escalation_contacts
       WHERE id = $1
     `;
-    const existing = await queryOne<{ tenant_id: string }>(existingSql, [id]);
+    const existing = await tenantQueryOne<{ tenant_id: string }>(
+      membership.tenant_id,
+      existingSql,
+      [id],
+    );
 
     if (!existing || existing.tenant_id !== membership.tenant_id) {
       return c.json({ error: "Contact not found" }, 404);
@@ -728,7 +742,10 @@ escalationRoutes.put("/contacts/:id", async (c) => {
         SET is_primary = false
         WHERE tenant_id = $1 AND id != $2
       `;
-      await queryOne(unsetPrimarySql, [membership.tenant_id, id]);
+      await tenantQueryOne(membership.tenant_id, unsetPrimarySql, [
+        membership.tenant_id,
+        id,
+      ]);
     }
 
     const updateData: Record<string, unknown> = {};
@@ -748,6 +765,8 @@ escalationRoutes.put("/contacts/:id", async (c) => {
       "escalation_contacts",
       updateData,
       { id },
+      "*",
+      membership.tenant_id,
     );
 
     return c.json(contact);
@@ -790,10 +809,10 @@ escalationRoutes.delete("/contacts/:id", async (c) => {
       FROM escalation_contacts
       WHERE id = $1
     `;
-    const contact = await queryOne<{ tenant_id: string; is_primary: boolean }>(
-      contactSql,
-      [id],
-    );
+    const contact = await tenantQueryOne<{
+      tenant_id: string;
+      is_primary: boolean;
+    }>(membership.tenant_id, contactSql, [id]);
 
     if (!contact || contact.tenant_id !== membership.tenant_id) {
       return c.json({ error: "Contact not found" }, 404);
@@ -806,9 +825,11 @@ escalationRoutes.delete("/contacts/:id", async (c) => {
         FROM escalation_contacts
         WHERE tenant_id = $1
       `;
-      const countResult = await queryOne<{ count: string }>(countSql, [
+      const countResult = await tenantQueryOne<{ count: string }>(
         membership.tenant_id,
-      ]);
+        countSql,
+        [membership.tenant_id],
+      );
       const count = parseInt(countResult?.count || "0", 10);
 
       if (count > 1) {
@@ -820,23 +841,26 @@ escalationRoutes.delete("/contacts/:id", async (c) => {
           ORDER BY sort_order ASC
           LIMIT 1
         `;
-        const nextContact = await queryOne<{ id: string }>(nextContactSql, [
+        const nextContact = await tenantQueryOne<{ id: string }>(
           membership.tenant_id,
-          id,
-        ]);
+          nextContactSql,
+          [membership.tenant_id, id],
+        );
 
         if (nextContact) {
           await updateOne(
             "escalation_contacts",
             { is_primary: true },
             { id: nextContact.id },
+            "*",
+            membership.tenant_id,
           );
         }
       }
     }
 
     // Delete the contact
-    await deleteRows("escalation_contacts", { id });
+    await deleteRows("escalation_contacts", { id }, membership.tenant_id);
 
     // Reorder remaining contacts
     const remainingSql = `
@@ -845,9 +869,11 @@ escalationRoutes.delete("/contacts/:id", async (c) => {
       WHERE tenant_id = $1
       ORDER BY sort_order ASC
     `;
-    const remaining = await queryAll<{ id: string }>(remainingSql, [
+    const remaining = await tenantQueryAll<{ id: string }>(
       membership.tenant_id,
-    ]);
+      remainingSql,
+      [membership.tenant_id],
+    );
 
     if (remaining && remaining.length > 0) {
       for (let i = 0; i < remaining.length; i++) {
@@ -855,6 +881,8 @@ escalationRoutes.delete("/contacts/:id", async (c) => {
           "escalation_contacts",
           { sort_order: i },
           { id: remaining[i].id },
+          "*",
+          membership.tenant_id,
         );
       }
     }
@@ -1010,15 +1038,18 @@ escalationRoutes.post("/contacts/reorder", async (c) => {
       return c.json({ error: "Forbidden" }, 403);
     }
 
-    // Update sort order for each contact in a transaction
-    await transaction(async (client: PoolClient) => {
-      for (let i = 0; i < body.order.length; i++) {
-        await client.query(
-          `UPDATE escalation_contacts SET sort_order = $1 WHERE id = $2 AND tenant_id = $3`,
-          [i, body.order[i], membership.tenant_id],
-        );
-      }
-    });
+    // Update sort order for each contact in a transaction (RLS-scoped)
+    await tenantTransaction(
+      membership.tenant_id,
+      async (client: PoolClient) => {
+        for (let i = 0; i < body.order.length; i++) {
+          await client.query(
+            `UPDATE escalation_contacts SET sort_order = $1 WHERE id = $2 AND tenant_id = $3`,
+            [i, body.order[i], membership.tenant_id],
+          );
+        }
+      },
+    );
 
     return c.json({ success: true });
   } catch (error) {

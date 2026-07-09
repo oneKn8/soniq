@@ -4,7 +4,7 @@
  * Used for assisted mode when no calendar integration is available
  */
 
-import { queryOne, queryAll } from "../database/client.js";
+import { tenantQueryOne, tenantQueryAll } from "../database/client.js";
 import { insertOne, updateOne } from "../database/query-helpers.js";
 import type { BookingRequest, BookingConfirmation } from "./types.js";
 import type { PendingBooking } from "../../types/database.js";
@@ -79,18 +79,23 @@ export async function createPendingBooking(
     : null;
 
   try {
-    const data = await insertOne<PendingBookingRow>("pending_bookings", {
-      tenant_id: tenantId,
-      call_id: callId || null,
-      customer_name: booking.customerName,
-      customer_phone: booking.customerPhone,
-      customer_email: booking.customerEmail,
-      requested_date: requestedDate,
-      requested_time: requestedTime,
-      service: booking.service,
-      notes: booking.notes,
-      status: "pending",
-    });
+    const data = await insertOne<PendingBookingRow>(
+      "pending_bookings",
+      {
+        tenant_id: tenantId,
+        call_id: callId || null,
+        customer_name: booking.customerName,
+        customer_phone: booking.customerPhone,
+        customer_email: booking.customerEmail,
+        requested_date: requestedDate,
+        requested_time: requestedTime,
+        service: booking.service,
+        notes: booking.notes,
+        status: "pending",
+      },
+      "*",
+      tenantId,
+    );
 
     logger.info(`[PENDING_BOOKING] Created pending booking ${data.id}`);
 
@@ -115,6 +120,7 @@ export async function createPendingBooking(
 export async function confirmPendingBooking(
   bookingId: string,
   userId: string,
+  tenantId: string,
 ): Promise<void> {
   try {
     const result = await updateOne<PendingBookingRow>(
@@ -125,6 +131,8 @@ export async function confirmPendingBooking(
         confirmed_at: new Date().toISOString(),
       },
       { id: bookingId },
+      "*",
+      tenantId,
     );
 
     if (!result) {
@@ -147,6 +155,7 @@ export async function confirmPendingBooking(
 export async function rejectPendingBooking(
   bookingId: string,
   userId: string,
+  tenantId: string,
   reason?: string,
 ): Promise<void> {
   try {
@@ -158,7 +167,8 @@ export async function rejectPendingBooking(
 
     // Append rejection reason to notes if provided
     if (reason) {
-      const existing = await queryOne<{ notes: string | null }>(
+      const existing = await tenantQueryOne<{ notes: string | null }>(
+        tenantId,
         `SELECT notes FROM pending_bookings WHERE id = $1`,
         [bookingId],
       );
@@ -173,6 +183,8 @@ export async function rejectPendingBooking(
       "pending_bookings",
       updateData,
       { id: bookingId },
+      "*",
+      tenantId,
     );
 
     if (!result) {
@@ -215,7 +227,11 @@ export async function getPendingBookings(
 
     sql += ` ORDER BY pb.created_at DESC`;
 
-    const rows = await queryAll<PendingBookingWithCallRow>(sql, params);
+    const rows = await tenantQueryAll<PendingBookingWithCallRow>(
+      tenantId,
+      sql,
+      params,
+    );
 
     return rows.map((row) => ({
       id: row.id,
@@ -256,7 +272,8 @@ export async function getPendingBookingById(
   tenantId: string,
 ): Promise<PendingBookingWithCall | null> {
   try {
-    const row = await queryOne<PendingBookingWithCallRow>(
+    const row = await tenantQueryOne<PendingBookingWithCallRow>(
+      tenantId,
       `SELECT
         pb.*,
         c.id as call_id_joined,
@@ -332,23 +349,28 @@ export async function convertPendingToConfirmed(
 
   try {
     // Create the confirmed booking
-    const booking = await insertOne<BookingRow>("bookings", {
-      tenant_id: tenantId,
-      call_id: pending.call_id,
-      customer_name: pending.customer_name,
-      customer_phone: pending.customer_phone,
-      customer_email: pending.customer_email,
-      booking_date: bookingDate,
-      booking_time: bookingTime,
-      booking_type: pending.service || "appointment",
-      notes: pending.notes,
-      status: "confirmed",
-      confirmation_code: confirmationCode,
-      source: "call",
-    });
+    const booking = await insertOne<BookingRow>(
+      "bookings",
+      {
+        tenant_id: tenantId,
+        call_id: pending.call_id,
+        customer_name: pending.customer_name,
+        customer_phone: pending.customer_phone,
+        customer_email: pending.customer_email,
+        booking_date: bookingDate,
+        booking_time: bookingTime,
+        booking_type: pending.service || "appointment",
+        notes: pending.notes,
+        status: "confirmed",
+        confirmation_code: confirmationCode,
+        source: "call",
+      },
+      "*",
+      tenantId,
+    );
 
     // Update pending booking status
-    await confirmPendingBooking(bookingId, userId);
+    await confirmPendingBooking(bookingId, userId, tenantId);
 
     logger.info(`[PENDING_BOOKING] Converted pending ${bookingId} to confirmed ${booking.id}`);
 

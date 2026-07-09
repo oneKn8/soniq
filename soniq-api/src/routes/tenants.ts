@@ -39,7 +39,6 @@ const addMemberSchema = z
 interface TenantRow {
   id: string;
   business_name: string;
-  industry: string;
   phone_number: string;
   is_active: boolean;
   created_at: string;
@@ -88,7 +87,6 @@ tenantsRoutes.get("/", async (c) => {
       `SELECT
         t.id,
         t.business_name,
-        t.industry,
         t.phone_number,
         t.is_active,
         t.created_at,
@@ -197,7 +195,6 @@ tenantsRoutes.post("/", async (c) => {
     const tenant = {
       business_name: body.business_name,
       phone_number: body.phone_number,
-      industry: body.industry || "general",
       agent_name: body.agent_name || "AI Assistant",
       agent_personality: body.agent_personality || {
         tone: "professional",
@@ -256,18 +253,17 @@ tenantsRoutes.post("/", async (c) => {
       // Create tenant
       const insertTenantSql = `
         INSERT INTO tenants (
-          business_name, phone_number, industry, agent_name, agent_personality,
+          business_name, phone_number, agent_name, agent_personality,
           voice_config, greeting_standard, greeting_after_hours, greeting_returning,
           timezone, operating_hours, escalation_enabled, escalation_phone,
           escalation_triggers, features, is_active, subscription_tier
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
         ) RETURNING *
       `;
       const tenantResult = await client.query<TenantRow>(insertTenantSql, [
         tenant.business_name,
         tenant.phone_number,
-        tenant.industry,
         tenant.agent_name,
         tenant.agent_personality,
         tenant.voice_config,

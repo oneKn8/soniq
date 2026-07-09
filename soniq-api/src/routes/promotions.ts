@@ -1,6 +1,10 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { queryOne, queryAll } from "../services/database/client.js";
+import {
+  queryOne,
+  tenantQueryOne,
+  tenantQueryAll,
+} from "../services/database/client.js";
 import {
   insertOne,
   updateOne,
@@ -95,7 +99,11 @@ promotionsRoutes.get("/", async (c) => {
       params = [membership.tenant_id];
     }
 
-    const promotions = await queryAll<PromotionRow>(promotionsSql, params);
+    const promotions = await tenantQueryAll<PromotionRow>(
+      membership.tenant_id,
+      promotionsSql,
+      params,
+    );
 
     return c.json({ promotions: promotions || [] });
   } catch (error) {
@@ -133,14 +141,19 @@ promotionsRoutes.post("/", async (c) => {
       return c.json({ error: "Forbidden" }, 403);
     }
 
-    const promotion = await insertOne<PromotionRow>("tenant_promotions", {
-      tenant_id: membership.tenant_id,
-      offer_text: body.offer_text,
-      mention_behavior: body.mention_behavior || "relevant",
-      is_active: body.is_active !== undefined ? body.is_active : true,
-      starts_at: body.starts_at || null,
-      ends_at: body.ends_at || null,
-    });
+    const promotion = await insertOne<PromotionRow>(
+      "tenant_promotions",
+      {
+        tenant_id: membership.tenant_id,
+        offer_text: body.offer_text,
+        mention_behavior: body.mention_behavior || "relevant",
+        is_active: body.is_active !== undefined ? body.is_active : true,
+        starts_at: body.starts_at || null,
+        ends_at: body.ends_at || null,
+      },
+      "*",
+      membership.tenant_id,
+    );
 
     return c.json(promotion, 201);
   } catch (error) {
@@ -178,10 +191,11 @@ promotionsRoutes.get("/:id", async (c) => {
       FROM tenant_promotions
       WHERE id = $1 AND tenant_id = $2
     `;
-    const promotion = await queryOne<PromotionRow>(promotionSql, [
-      id,
+    const promotion = await tenantQueryOne<PromotionRow>(
       membership.tenant_id,
-    ]);
+      promotionSql,
+      [id, membership.tenant_id],
+    );
 
     if (!promotion) {
       return c.json({ error: "Promotion not found" }, 404);
@@ -230,7 +244,11 @@ promotionsRoutes.put("/:id", async (c) => {
       FROM tenant_promotions
       WHERE id = $1
     `;
-    const existing = await queryOne<{ tenant_id: string }>(existingSql, [id]);
+    const existing = await tenantQueryOne<{ tenant_id: string }>(
+      membership.tenant_id,
+      existingSql,
+      [id],
+    );
 
     if (!existing || existing.tenant_id !== membership.tenant_id) {
       return c.json({ error: "Promotion not found" }, 404);
@@ -248,6 +266,8 @@ promotionsRoutes.put("/:id", async (c) => {
       "tenant_promotions",
       updateData,
       { id },
+      "*",
+      membership.tenant_id,
     );
 
     return c.json(promotion);
@@ -290,13 +310,17 @@ promotionsRoutes.delete("/:id", async (c) => {
       FROM tenant_promotions
       WHERE id = $1
     `;
-    const existing = await queryOne<{ tenant_id: string }>(existingSql, [id]);
+    const existing = await tenantQueryOne<{ tenant_id: string }>(
+      membership.tenant_id,
+      existingSql,
+      [id],
+    );
 
     if (!existing || existing.tenant_id !== membership.tenant_id) {
       return c.json({ error: "Promotion not found" }, 404);
     }
 
-    await deleteRows("tenant_promotions", { id });
+    await deleteRows("tenant_promotions", { id }, membership.tenant_id);
 
     return c.json({ success: true });
   } catch (error) {
@@ -338,10 +362,10 @@ promotionsRoutes.post("/:id/toggle", async (c) => {
       FROM tenant_promotions
       WHERE id = $1
     `;
-    const existing = await queryOne<{ tenant_id: string; is_active: boolean }>(
-      existingSql,
-      [id],
-    );
+    const existing = await tenantQueryOne<{
+      tenant_id: string;
+      is_active: boolean;
+    }>(membership.tenant_id, existingSql, [id]);
 
     if (!existing || existing.tenant_id !== membership.tenant_id) {
       return c.json({ error: "Promotion not found" }, 404);
@@ -351,6 +375,8 @@ promotionsRoutes.post("/:id/toggle", async (c) => {
       "tenant_promotions",
       { is_active: !existing.is_active },
       { id },
+      "*",
+      membership.tenant_id,
     );
 
     return c.json(promotion);

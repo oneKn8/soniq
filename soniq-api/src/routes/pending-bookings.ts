@@ -99,7 +99,7 @@ pendingBookingsRoutes.put("/:id/confirm", async (c) => {
       return c.json({ error: `Booking is already ${booking.status}` }, 400);
     }
 
-    await confirmPendingBooking(id, userId);
+    await confirmPendingBooking(id, userId, tenantId);
 
     return c.json({ success: true, status: "confirmed" });
   } catch (error) {
@@ -141,7 +141,7 @@ pendingBookingsRoutes.put("/:id/reject", async (c) => {
       return c.json({ error: `Booking is already ${booking.status}` }, 400);
     }
 
-    await rejectPendingBooking(id, userId, parsed.data.reason);
+    await rejectPendingBooking(id, userId, tenantId, parsed.data.reason);
 
     return c.json({ success: true, status: "rejected" });
   } catch (error) {

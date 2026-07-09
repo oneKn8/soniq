@@ -12,6 +12,7 @@ import {
   tenantQueryOne,
   tenantQueryAll,
   tenantQueryCount,
+  tenantQuery,
 } from "./pool.js";
 import { QueryResultRow } from "pg";
 
@@ -318,6 +319,7 @@ export async function upsert<T extends QueryResultRow>(
   data: Record<string, unknown>,
   conflictColumns: string[],
   returning = "*",
+  tenantId?: string,
 ): Promise<T> {
   const columns = Object.keys(data);
   const values = Object.values(data);
@@ -335,7 +337,9 @@ export async function upsert<T extends QueryResultRow>(
     RETURNING ${returning}
   `;
 
-  const result = await queryOne<T>(sql, values);
+  const result = tenantId
+    ? await tenantQueryOne<T>(tenantId, sql, values)
+    : await queryOne<T>(sql, values);
   if (!result) {
     throw new Error(`Failed to upsert into ${table}`);
   }
@@ -350,7 +354,7 @@ export async function batchUpsert(
   table: string,
   records: Record<string, unknown>[],
   conflictColumns: string[],
-  options: { ignoreDuplicates?: boolean } = {},
+  options: { ignoreDuplicates?: boolean; tenantId?: string } = {},
 ): Promise<number> {
   if (records.length === 0) return 0;
 
@@ -385,5 +389,9 @@ export async function batchUpsert(
     `;
   }
 
+  if (options.tenantId) {
+    const result = await tenantQuery(options.tenantId, sql, params);
+    return result.rowCount ?? 0;
+  }
   return queryCount(sql, params);
 }

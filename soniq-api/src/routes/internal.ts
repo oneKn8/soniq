@@ -95,7 +95,6 @@ internalRoutes.get("/tenants/by-phone/:phone", async (c) => {
   return c.json({
     id: tenant.id,
     business_name: tenant.business_name,
-    industry: tenant.industry,
     agent_name: tenant.agent_name,
     phone_number: tenant.phone_number,
     voice_config: tenant.voice_config,
@@ -220,27 +219,32 @@ internalRoutes.post("/calls/log", async (c) => {
       }
     }
 
-    const record = await insertOne("calls", {
-      tenant_id: body.tenant_id,
-      vapi_call_id: body.call_sid,
-      caller_phone: body.caller_phone || null,
-      caller_name: body.caller_name || null,
-      direction: body.direction || "inbound",
-      status: mapCallStatus(body.status),
-      started_at: body.started_at,
-      ended_at: body.ended_at,
-      duration_seconds: body.duration_seconds,
-      ended_reason: body.ended_reason || null,
-      outcome_type: body.outcome_type || "inquiry",
-      outcome_success: body.outcome_success ?? true,
-      transcript: body.transcript || null,
-      summary: body.summary || null,
-      sentiment_score: body.sentiment_score ?? null,
-      intents_detected: body.intents_detected || null,
-      recording_url: body.recording_url || null,
-      cost_cents: body.cost_cents ?? null,
-      contact_id: contactId,
-    });
+    const record = await insertOne(
+      "calls",
+      {
+        tenant_id: body.tenant_id,
+        provider_call_id: body.call_sid,
+        caller_phone: body.caller_phone || null,
+        caller_name: body.caller_name || null,
+        direction: body.direction || "inbound",
+        status: mapCallStatus(body.status),
+        started_at: body.started_at,
+        ended_at: body.ended_at,
+        duration_seconds: body.duration_seconds,
+        ended_reason: body.ended_reason || null,
+        outcome_type: body.outcome_type || "inquiry",
+        outcome_success: body.outcome_success ?? true,
+        transcript: body.transcript || null,
+        summary: body.summary || null,
+        sentiment_score: body.sentiment_score ?? null,
+        intents_detected: body.intents_detected || null,
+        recording_url: body.recording_url || null,
+        cost_cents: body.cost_cents ?? null,
+        contact_id: contactId,
+      },
+      "*",
+      body.tenant_id,
+    );
 
     logger.info(`[INTERNAL] Call logged: ${body.call_sid}, ${body.duration_seconds}s, ${body.outcome_type || "inquiry"}`);
 
