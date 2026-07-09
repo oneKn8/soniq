@@ -3,6 +3,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { captureException } from "@/lib/observability/reporting";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -35,6 +36,11 @@ export class ErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
+    // No-op unless an error-reporting DSN is configured.
+    captureException(error, {
+      componentStack: info.componentStack,
+      boundary: "component",
+    });
     this.props.onError?.(error, info);
   }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { captureException } from "@/lib/observability/reporting";
 
 /**
  * Last-resort boundary. It replaces the root layout when the layout itself (or
@@ -17,6 +18,8 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error(error);
+    // No-op unless an error-reporting DSN is configured.
+    captureException(error, { digest: error.digest, boundary: "global" });
   }, [error]);
 
   return (

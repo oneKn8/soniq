@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { AlertTriangle, RotateCcw, Home } from "lucide-react";
 import { SoniqMark } from "@/components/brand/SoniqMark";
 import { Button } from "@/components/ui/button";
+import { captureException } from "@/lib/observability/reporting";
 
 /**
  * Route-level error boundary. Next.js renders this whenever a Server or Client
@@ -19,6 +20,8 @@ export default function Error({
   useEffect(() => {
     // Surface the error for local debugging and any attached reporter.
     console.error(error);
+    // No-op unless an error-reporting DSN is configured.
+    captureException(error, { digest: error.digest, boundary: "route" });
   }, [error]);
 
   return (
